@@ -1,0 +1,5 @@
+*/training_checkpoints/*
+*/.vscode/*
+*/venv/*
+*/__pycache__/*
+*.pyc
