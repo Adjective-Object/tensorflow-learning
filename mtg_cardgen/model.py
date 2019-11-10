@@ -4,53 +4,46 @@ import tensorflow as tf
 # https://www.tensorflow.org/tutorials/quickstart/beginner
 
 
-def build_model(max_names_length, features_length):
+def build_model(input_string_length, features_length, scalars_length):
     print(
         "building model with features_length =",
         features_length,
-        "max_names_length =",
-        max_names_length,
+        "input_string_length =",
+        input_string_length,
     )
 
-    name_fragment_input = tf.keras.Input(
-        shape=(max_names_length,), name="name_fragment_input"
-    )
-    name_fragment_sequence = tf.keras.layers.Reshape(
-        target_shape=(1, max_names_length)
-    )(name_fragment_input)
-    name_predictor_lstm = tf.keras.layers.LSTM(16, name="name_predictor_lstm")(
-        name_fragment_sequence
-    )
-    name_predictor_lstm_flat = tf.keras.layers.Flatten(name="name_predictor_lstm_flat")(
-        name_predictor_lstm
-    )
+    text_input = tf.keras.Input(shape=(input_string_length,), name="text_input")
 
-    name_predictor_hidden_layer = tf.keras.layers.Dense(
-        max_names_length, name="name_predictor_hidden_layer"
-    )(name_predictor_lstm_flat)
+    text_sequence = tf.keras.layers.Reshape(target_shape=(1, input_string_length))(
+        text_input
+    )
+    input_lstm = tf.keras.layers.LSTM(64, name="input_lstm")(text_sequence)
+    # input_lstm_flat = tf.keras.layers.Flatten(name="input_lstm_flat")(input_lstm)
+
+    scalar_predictor_hidden_layer = tf.keras.layers.Dense(
+        64, name="scalar_predictor_hidden_layer"
+    )(input_lstm)
+
+    scalar_predictor = tf.keras.layers.Dense(
+        scalars_length, name="scalar_predictor", activation="linear"
+    )(scalar_predictor_hidden_layer)
 
     feature_prediction_hidden_layer = tf.keras.layers.Dense(
-        16, name="feature_prediction_hidden_layer"
-    )(name_predictor_lstm_flat)
+        64, name="feature_prediction_hidden_layer"
+    )(input_lstm)
 
-    feature_prediction_expansion = tf.keras.layers.Dense(
-        features_length, name="feature_prediction_expansion"
+    feature_prediction = tf.keras.layers.Dense(
+        features_length, name="feature_prediction", activation="softmax"
     )(feature_prediction_hidden_layer)
 
-    concatenated_expanded_layers = tf.keras.layers.concatenate(
-        [name_predictor_hidden_layer, feature_prediction_expansion]
-    )
-
     model = tf.keras.models.Model(
-        inputs=name_fragment_input, outputs=concatenated_expanded_layers
+        inputs=text_input, outputs=[scalar_predictor, feature_prediction],
     )
 
     model.compile(
         # Variant of stochastic gradient descent.
         # see https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/Adam
-        optimizer=tf.keras.optimizers.Adadelta(
-            learning_rate=0.001, rho=0.95, epsilon=1e-07,
-        ),
+        optimizer="nadam",
         # categorial_crossentropy is used for classifying categories?
         # e.g. digits in a digit set, next char output of an RNN
         #
@@ -58,11 +51,18 @@ def build_model(max_names_length, features_length):
         # https://jovianlin.io/cat-crossentropy-vs-sparse-cat-crossentropy/
         # If your targets are one-hot encoded, use categorical_crossentropy
         # But if your targets are integers, use sparse_categorical_crossentropy
-        loss=tf.keras.losses.LogCosh(),
+        loss={
+            "feature_prediction": "categorical_hinge",
+            # prefer logarithmic error over mean squared error because we think
+            # messing up the scalar costs of a card is not as bad as messing up
+            # the classification of the card.
+            "scalar_predictor": "mean_squared_error",
+        },
         metrics=[
             # Calculates how often predictions match labels.
             # (Is this just total / match count during a training batch?)
-            "accuracy",
+            "categorical_accuracy",
+            "mean_absolute_error",
         ],
     )
 

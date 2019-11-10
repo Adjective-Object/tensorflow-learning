@@ -6,23 +6,23 @@ from datetime import datetime
 
 if __name__ == "__main__":
     print("loading data")
-    features = np.load(
-        os.path.join("data", "allCards_features.npy"), allow_pickle=False
-    )
+    features = np.load(os.path.join("data", "allCards_classes.npy"), allow_pickle=False)
     names = np.load(os.path.join("data", "allCards_names.npy"), allow_pickle=False)
+    scalars = np.load(os.path.join("data", "allCards_scalars.npy"), allow_pickle=False)
 
     # network is failing. Let's try overfitting and see if it works
     # features = features[0:20]
     # names = names[0:20]
 
+    print("names.shape", names.shape)
     print(
         "features.shape", features.shape,
     )
-    print("names.shape", names.shape)
+    print("scalars.shape", scalars.shape)
 
     # build the model
     print("building model")
-    model = build_model(names.shape[1], features.shape[1] - names.shape[1])
+    model = build_model(names.shape[1], features.shape[1], scalars.shape[1])
     tf.keras.utils.plot_model(model, show_shapes=True, expand_nested=True)
 
     print("segmenting data into training & test sets at random")
@@ -34,12 +34,15 @@ if __name__ == "__main__":
 
     test_names = names[random_sample_indices]
     test_features = features[random_sample_indices]
+    test_scalars = scalars[random_sample_indices]
 
     training_names = np.delete(names, random_sample_indices, axis=0)
     training_features = np.delete(features, random_sample_indices, axis=0)
+    training_scalars = np.delete(scalars, random_sample_indices, axis=0)
 
     del names
     del features
+    del scalars
 
     print(
         "test_features.shape", test_features.shape,
@@ -64,23 +67,11 @@ if __name__ == "__main__":
         )
     )
 
-    NUM_BATCHES = 10
-    BATCH_SIZE = 60000
-    for i in range(1, NUM_BATCHES + 1):
-        num_samples_in_set = training_names.shape[0]
-        training_batch_idx = random_sample_indices = np.random.choice(
-            num_samples_in_set, BATCH_SIZE, replace=False
-        )
+    model.fit(
+        training_names,  # input
+        [training_scalars, training_features],  # Expected outputs
+        epochs=50,
+        callbacks=[checkpoint_callback, tensorboard_callback],
+    )
 
-        batch_name_segments = training_names[training_batch_idx]
-        batch_features = training_features[training_batch_idx]
-
-        print("fitting model on batch of size %s %s/%s" % (BATCH_SIZE, i, NUM_BATCHES))
-        model.fit(
-            batch_name_segments,  # input
-            batch_features,  # Expected outputs
-            epochs=20,
-            callbacks=[checkpoint_callback, tensorboard_callback],
-        )
-
-    model.evaluate(training_names, training_features, verbose=2)
+    model.evaluate(test_names, [test_scalars, test_features], verbose=2)

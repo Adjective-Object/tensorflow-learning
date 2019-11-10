@@ -10,7 +10,8 @@ DOWNLOAD_URL_XZ = "https://www.mtgjson.com/files/AllCards.json.xz"
 DATA_DIR = "data"
 DOWNLOAD_PATH_XZ = os.path.join(DATA_DIR, "allCards.xz")
 DOWNLOAD_PATH_JSON = os.path.join(DATA_DIR, "allCards.json")
-NP_FEATURES_FILE = os.path.join(DATA_DIR, "allCards_features")
+NP_SCALARS_FILE = os.path.join(DATA_DIR, "allCards_scalars")
+NP_FEATURES_FILE = os.path.join(DATA_DIR, "allCards_classes")
 NP_INPUTS_FILE = os.path.join(DATA_DIR, "allCards_names")
 GENERIC_MANA_KEY = "__Generic"
 
@@ -64,7 +65,7 @@ def encode_card_intval(intstr):
     elif intstr[1:].isnumeric() and intstr[0] == "+":
         return int(intstr[1:])
     else:
-        print("ERROR INCODING INTVAL IN CARD:", intstr)
+        # print("ERROR ENCODING INTVAL IN CARD:", intstr)
         return 0
 
 
@@ -117,24 +118,14 @@ def get_model_parameters(all_cards):
     return {
         "longestname": longestname,
         "totalnamelegths": totalnamelegths,
-        "colors": lookup_map_from_set(colors, initial_offset=longestname),
-        "types": lookup_map_from_set(
-            basetypes, initial_offset=longestname + len(colors)
-        ),
-        "subtypes": lookup_map_from_set(
-            subtypes, initial_offset=longestname + len(colors) + len(basetypes)
-        ),
+        "colors": lookup_map_from_set(colors),
+        "types": lookup_map_from_set(basetypes),
+        "subtypes": lookup_map_from_set(subtypes, initial_offset=len(basetypes)),
         "supertypes": lookup_map_from_set(
-            supertypes,
-            initial_offset=longestname + len(colors) + len(basetypes) + len(supertypes),
+            supertypes, initial_offset=len(basetypes) + len(supertypes),
         ),
         "printings": lookup_map_from_set(
-            printings,
-            initial_offset=longestname
-            + len(colors)
-            + len(basetypes)
-            + len(supertypes)
-            + len(colors),
+            printings, initial_offset=len(basetypes) + len(supertypes) + len(colors),
         ),
     }
 
@@ -145,17 +136,15 @@ def generate_numpy_from_json(all_cards):
     print("getting parameters from cards dataset")
     model_params = get_model_parameters(all_cards)
 
-    total_enum_lengths = sum(
-        (
-            len(model_params[enum_index])
-            for enum_index in [
-                "colors",
-                "types",
-                "subtypes",
-                "supertypes",
-                "printings",
-            ]
-        )
+    class_params = [
+        "types",
+        "subtypes",
+        "supertypes",
+        # "printings",
+    ]
+
+    total_classes_lengths = sum(
+        (len(model_params[enum_index]) for enum_index in class_params)
     )
 
     other_keys_ints = [
@@ -166,65 +155,73 @@ def generate_numpy_from_json(all_cards):
 
     print("converting into input/output vectors")
 
+    allcards_values = sorted(all_cards.values(), key=lambda x: x["name"])
     feature_vector_size = (
-        total_enum_lengths + len(other_keys_ints) + model_params["longestname"]
+        total_classes_lengths + len(other_keys_ints) + model_params["longestname"]
     )
-    input_strings = np.zeros(
-        (model_params["totalnamelegths"], model_params["longestname"])
+    input_strings = np.zeros((len(allcards_values), model_params["longestname"]))
+    output_scalars = np.zeros(
+        (len(allcards_values), len(model_params["colors"]) + len(other_keys_ints))
     )
-    output_labels = np.zeros((model_params["totalnamelegths"], feature_vector_size))
+    output_labels = np.zeros((len(allcards_values), feature_vector_size))
+    output_labels[:,:] = -1
 
     ind = 0
-    allcards_values = sorted(all_cards.values(), key=lambda x: x["name"])
     for card in allcards_values:
         # populate input string
-        ascii_name = card["name"].encode("ascii", "ignore")
+        ascii_name = card["name"].lower().encode("ascii", "ignore")
         name_as_char_arr = np.array(ascii_name, "c")
         name_as_fl_arr = (
             name_as_char_arr.view(np.uint8).astype(np.float64) / 128
         )  # normalize input as floats between [0, 1]
-        for i in range(1, len(ascii_name)):
-            input_strings[ind, 0:i] = name_as_fl_arr[0:i]
-            output_labels[ind, 0 : len(ascii_name)] = name_as_fl_arr
 
-            # populate mana costs
-            if "manaCost" in card:
-                mana_cost = split_mana_cost_string(card["manaCost"])
-                for cost_part in mana_cost:
-                    lookup_key = (
-                        cost_part if not cost_part.isnumeric() else GENERIC_MANA_KEY
-                    )
-                    cost_part_index = model_params["colors"][lookup_key]
-                    output_labels[ind][cost_part_index] += 1
+        input_strings[ind, 0 : len(ascii_name)] = name_as_fl_arr
 
-            # turn on flags for enums generically
-            for propKey in ["subtypes", "supertypes", "printings", "types"]:
-                if propKey in card:
-                    prop = card[propKey]
-                    for prop_enum_val in prop:
-                        prop_index = model_params[propKey][prop_enum_val]
-                        output_labels[ind][prop_index] = 1
+        # populate mana costs
+        if "manaCost" in card:
+            mana_cost = split_mana_cost_string(card["manaCost"])
+            for cost_part in mana_cost:
+                lookup_key = (
+                    cost_part if not cost_part.isnumeric() else GENERIC_MANA_KEY
+                )
+                cost_part_index = model_params["colors"][lookup_key]
+                output_scalars[ind][cost_part_index] += 1
 
-            for [intKeyIndex, intKey] in enumerate(other_keys_ints):
-                if intKey in card:
-                    output_labels[ind][-intKeyIndex] = encode_card_intval(card[intKey])
+        # populate other scalars
+        for [intKeyIndex, intKey] in enumerate(other_keys_ints):
+            if intKey in card:
+                output_scalars[ind][-intKeyIndex] = encode_card_intval(card[intKey])
 
-            # TODO add other keys also
-            ind += 1
+        # turn on flags for each of the enum classes
+        for propKey in class_params:
+            if propKey in card:
+                prop = card[propKey]
+                for prop_enum_val in prop:
+                    prop_index = model_params[propKey][prop_enum_val]
+                    output_labels[ind][prop_index] = 1
+
+        ind += 1
+
+    # regularize output scalars
+    output_scalars = output_scalars / 15.0
 
     print("writing outputs..")
 
-    print("cards[0]", allcards_values[0])
+    print("model params", json.dumps(model_params, indent=2))
+    print("cards[0]", json.dumps(allcards_values[0], indent=2))
     print("input_strings[0] = ", input_strings[0])
-    print("output[0] = ", output_labels[0])
+    print("output_labels[0] = ", output_labels[0])
+    print("output_scalars[0] = ", output_scalars[0])
 
-    np.save(NP_FEATURES_FILE, output_labels, allow_pickle=False)
     np.save(NP_INPUTS_FILE, input_strings, allow_pickle=False)
+    np.save(NP_FEATURES_FILE, output_labels, allow_pickle=False)
+    np.save(NP_SCALARS_FILE, output_scalars, allow_pickle=False)
 
-    print("output_labels.shape", output_labels.shape)
     print("input_strings.shape", input_strings.shape)
+    print("output_labels.shape", output_labels.shape)
+    print("output_scalars.shape", output_scalars.shape)
 
-    print("wrote %s and %s" % (NP_FEATURES_FILE, NP_INPUTS_FILE))
+    print("wrote %s, %s, %s" % (NP_INPUTS_FILE, NP_FEATURES_FILE, NP_SCALARS_FILE))
 
 
 if __name__ == "__main__":
