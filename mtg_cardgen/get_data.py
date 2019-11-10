@@ -164,7 +164,7 @@ def generate_numpy_from_json(all_cards):
         (len(allcards_values), len(model_params["colors"]) + len(other_keys_ints))
     )
     output_labels = np.zeros((len(allcards_values), feature_vector_size))
-    output_labels[:,:] = -1
+    output_labels[:, :] = -1
 
     ind = 0
     for card in allcards_values:
@@ -203,7 +203,7 @@ def generate_numpy_from_json(all_cards):
         ind += 1
 
     # regularize output scalars
-    output_scalars = output_scalars / 15.0
+    # output_scalars = output_scalars / 15.0
 
     print("writing outputs..")
 

@@ -13,16 +13,24 @@ def build_model(input_string_length, features_length, scalars_length):
     )
 
     text_input = tf.keras.Input(shape=(input_string_length,), name="text_input")
-
     text_sequence = tf.keras.layers.Reshape(target_shape=(1, input_string_length))(
         text_input
     )
-    input_lstm = tf.keras.layers.LSTM(64, name="input_lstm")(text_sequence)
-    # input_lstm_flat = tf.keras.layers.Flatten(name="input_lstm_flat")(input_lstm)
+
+    input_lstm = tf.keras.layers.LSTM(32, name="input_lstm", return_sequences=True)(
+        text_sequence
+    )
+    # inner_lstm_1 = tf.keras.layers.LSTM(32, name="inner_lstm_1", return_sequences=True)(
+    #     input_lstm
+    # )
+    # inner_lstm_2 = tf.keras.layers.LSTM(32, name="inner_lstm_2", return_sequences=True)(
+    #     inner_lstm_1
+    # )
+    output_lstm = tf.keras.layers.LSTM(32, name="output_lstm")(input_lstm)
 
     scalar_predictor_hidden_layer = tf.keras.layers.Dense(
         64, name="scalar_predictor_hidden_layer"
-    )(input_lstm)
+    )(output_lstm)
 
     scalar_predictor = tf.keras.layers.Dense(
         scalars_length, name="scalar_predictor", activation="linear"
@@ -30,7 +38,7 @@ def build_model(input_string_length, features_length, scalars_length):
 
     feature_prediction_hidden_layer = tf.keras.layers.Dense(
         64, name="feature_prediction_hidden_layer"
-    )(input_lstm)
+    )(output_lstm)
 
     feature_prediction = tf.keras.layers.Dense(
         features_length, name="feature_prediction", activation="softmax"
