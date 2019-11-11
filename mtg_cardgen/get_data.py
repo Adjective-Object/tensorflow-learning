@@ -5,6 +5,8 @@ import os
 import re
 import itertools
 import numpy as np
+from sklearn.decomposition import PCA
+import pickle
 
 DOWNLOAD_URL_XZ = "https://www.mtgjson.com/files/AllCards.json.xz"
 DATA_DIR = "data"
@@ -12,8 +14,12 @@ DOWNLOAD_PATH_XZ = os.path.join(DATA_DIR, "allCards.xz")
 DOWNLOAD_PATH_JSON = os.path.join(DATA_DIR, "allCards.json")
 NP_SCALARS_FILE = os.path.join(DATA_DIR, "allCards_scalars")
 NP_FEATURES_FILE = os.path.join(DATA_DIR, "allCards_classes")
+NP_IDENTITIES_FILE = os.path.join(DATA_DIR, "allCards_identities")
 NP_INPUTS_FILE = os.path.join(DATA_DIR, "allCards_names")
+SKLEARN_PCA_FILE = os.path.join(DATA_DIR, "allCards_pca.pickle")
+MODEL_CONFIG_JSON_FILE = os.path.join(DATA_DIR, "modelConfig.json")
 GENERIC_MANA_KEY = "__Generic"
+PROP_KEY_NONE = "__None"
 
 
 def ensure_data_downloaded():
@@ -70,21 +76,26 @@ def encode_card_intval(intstr):
 
 
 def get_model_parameters(all_cards):
-    colors = set([GENERIC_MANA_KEY])
-    subtypes = set()
-    supertypes = set()
+    mana_costs = set([GENERIC_MANA_KEY])
+    color_identities = set([PROP_KEY_NONE])
+    basetypes = set([PROP_KEY_NONE])
+    subtypes = set([PROP_KEY_NONE])
+    supertypes = set([PROP_KEY_NONE])
     printings = set()
-    basetypes = set()
     namelens = dict()
     longestname = 0
     totalnamelegths = 0
 
     for card in all_cards.values():
+        if "colorIdentity" in card:
+            for color_id in card["colorIdentity"]:
+                color_identities.add(color_id)
+
         if "manaCost" in card:
             color_costs = split_mana_cost_string(card["manaCost"])
             non_numeric_costs = filter(lambda match: not match.isnumeric(), color_costs)
             for cost in non_numeric_costs:
-                colors.add(cost)
+                mana_costs.add(cost)
 
         if "subtypes" in card:
             for subtype in card["subtypes"]:
@@ -118,16 +129,27 @@ def get_model_parameters(all_cards):
     return {
         "longestname": longestname,
         "totalnamelegths": totalnamelegths,
-        "colors": lookup_map_from_set(colors),
+        "manaCost": lookup_map_from_set(mana_costs),
         "types": lookup_map_from_set(basetypes),
         "subtypes": lookup_map_from_set(subtypes, initial_offset=len(basetypes)),
         "supertypes": lookup_map_from_set(
             supertypes, initial_offset=len(basetypes) + len(supertypes),
         ),
         "printings": lookup_map_from_set(
-            printings, initial_offset=len(basetypes) + len(supertypes) + len(colors),
+            printings,
+            initial_offset=len(basetypes) + len(supertypes) + len(color_costs),
         ),
+        "color_identities": lookup_map_from_set(color_identities),
     }
+
+
+def reduce_dimensionality(data):
+    pca = PCA(20)
+    pca.fit(data)
+
+    pickle.dump(pca, open(SKLEARN_PCA_FILE, "wb"))
+
+    return pca.transform(data)
 
 
 def generate_numpy_from_json(all_cards):
@@ -153,6 +175,9 @@ def generate_numpy_from_json(all_cards):
         "loyalty",
     ]
 
+    model_params["class_params"] = class_params
+    model_params["other_keys_ints"] = other_keys_ints
+
     print("converting into input/output vectors")
 
     allcards_values = sorted(all_cards.values(), key=lambda x: x["name"])
@@ -161,19 +186,20 @@ def generate_numpy_from_json(all_cards):
     )
     input_strings = np.zeros((len(allcards_values), model_params["longestname"]))
     output_scalars = np.zeros(
-        (len(allcards_values), len(model_params["colors"]) + len(other_keys_ints))
+        (len(allcards_values), len(model_params["manaCost"]) + len(other_keys_ints))
     )
-    output_labels = np.zeros((len(allcards_values), feature_vector_size))
-    output_labels[:, :] = -1
+    output_color_identities = np.zeros(
+        (len(allcards_values), len(model_params["color_identities"]))
+    )
+    raw_labels = np.zeros((len(allcards_values), feature_vector_size))
+    # raw_labels[:, :] = -1
 
     ind = 0
     for card in allcards_values:
         # populate input string
         ascii_name = card["name"].lower().encode("ascii", "ignore")
-        name_as_char_arr = np.array(ascii_name, "c")
-        name_as_fl_arr = (
-            name_as_char_arr.view(np.uint8).astype(np.float64) / 128
-        )  # normalize input as floats between [0, 1]
+        name_as_char_arr = list(ascii_name)
+        name_as_fl_arr = np.array(name_as_char_arr) / 128.0
 
         input_strings[ind, 0 : len(ascii_name)] = name_as_fl_arr
 
@@ -184,44 +210,76 @@ def generate_numpy_from_json(all_cards):
                 lookup_key = (
                     cost_part if not cost_part.isnumeric() else GENERIC_MANA_KEY
                 )
-                cost_part_index = model_params["colors"][lookup_key]
+                cost_part_index = model_params["manaCost"][lookup_key]
                 output_scalars[ind][cost_part_index] += 1
+
+        # populate color identities
+        if "colorIdentity" in card:
+            for color_id in card["colorIdentity"]:
+                idx = model_params["color_identities"][color_id]
+                output_color_identities[ind, idx] = 1
+        if "colorIdentity" not in card or 0 == len(card["colorIdentity"]):
+            idx = model_params["color_identities"][PROP_KEY_NONE]
+            output_color_identities[ind, idx] = 1
 
         # populate other scalars
         for [intKeyIndex, intKey] in enumerate(other_keys_ints):
             if intKey in card:
-                output_scalars[ind][-intKeyIndex] = encode_card_intval(card[intKey])
+                output_scalars[ind][-1 - intKeyIndex] = encode_card_intval(card[intKey])
 
         # turn on flags for each of the enum classes
         for propKey in class_params:
             if propKey in card:
                 prop = card[propKey]
+                if len(prop) == 0 and PROP_KEY_NONE in model_params[propKey]:
+                    model_params[propKey][PROP_KEY_NONE] = 1
+                    continue
+
                 for prop_enum_val in prop:
                     prop_index = model_params[propKey][prop_enum_val]
-                    output_labels[ind][prop_index] = 1
+                    raw_labels[ind][prop_index] = 1
 
         ind += 1
 
     # regularize output scalars
-    # output_scalars = output_scalars / 15.0
+    scalar_regularization_avg = np.average(output_scalars, axis=0)
+    scalar_regularization_stddev = np.std(output_scalars, axis=0)
+    model_params["scalar_regularization_avg"] = list(scalar_regularization_avg)
+    model_params["scalar_regularization_stddev"] = list(scalar_regularization_stddev)
+    output_scalars = (
+        output_scalars - scalar_regularization_avg
+    ) / scalar_regularization_stddev
 
     print("writing outputs..")
 
+    # output_labels = reduce_dimensionality(raw_labels)
+    output_labels = raw_labels
+
     print("model params", json.dumps(model_params, indent=2))
-    print("cards[0]", json.dumps(allcards_values[0], indent=2))
-    print("input_strings[0] = ", input_strings[0])
-    print("output_labels[0] = ", output_labels[0])
-    print("output_scalars[0] = ", output_scalars[0])
+
+    for idx in range(20, 30):
+        print("cards[%s]" % idx, json.dumps(allcards_values[idx], indent=2))
+        print("input_strings[%s] = " % idx, input_strings[idx])
+        print("output_labels[%s] = " % idx, output_labels[idx])
+        print("output_scalars[%s] = " % idx, output_scalars[idx])
+        print("output_color_identities[%s] = " % idx, output_color_identities[idx])
 
     np.save(NP_INPUTS_FILE, input_strings, allow_pickle=False)
     np.save(NP_FEATURES_FILE, output_labels, allow_pickle=False)
     np.save(NP_SCALARS_FILE, output_scalars, allow_pickle=False)
+    np.save(NP_IDENTITIES_FILE, output_color_identities, allow_pickle=False)
+    with open(MODEL_CONFIG_JSON_FILE, "w") as f:
+        f.write(json.dumps(model_params, indent=2))
 
     print("input_strings.shape", input_strings.shape)
     print("output_labels.shape", output_labels.shape)
     print("output_scalars.shape", output_scalars.shape)
+    print("output_color_identities.shape", output_color_identities.shape)
 
-    print("wrote %s, %s, %s" % (NP_INPUTS_FILE, NP_FEATURES_FILE, NP_SCALARS_FILE))
+    print(
+        "wrote %s, %s, %s"
+        % (NP_INPUTS_FILE, NP_FEATURES_FILE, NP_SCALARS_FILE, NP_IDENTITIES_FILE)
+    )
 
 
 if __name__ == "__main__":
