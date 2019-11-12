@@ -17,6 +17,7 @@ if __name__ == "__main__":
     # names = names[20:30]
     # features = features[20:30]
     # scalars = scalars[20:30]
+    # identities = identities[20:30]
 
     print("names.shape", names.shape)
     print(
@@ -88,12 +89,19 @@ if __name__ == "__main__":
     model.fit(
         training_names,  # input
         [
-            training_scalars,
-            training_card_types,
             training_identities,
+            # training_card_types,
+            # training_scalars,
         ],  # Expected outputs
         epochs=50,
-        validation_data=(test_names, [test_scalars, test_card_types, test_identities]),
+        validation_data=(
+            test_names,
+            [
+                test_identities,
+                # test_scalars,
+                # test_card_types,
+            ],
+        ),
         # batch_size=100,
         callbacks=[
             # checkpoint_callback,
