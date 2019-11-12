@@ -31,7 +31,7 @@ if __name__ == "__main__":
     #             for enum_index in ["types", "subtypes", "supertypes",]
     #         )
     #     ),
-    #     3 + len(model_params["colors"]),
+    #     3 + len(model_params["manaCost"]),
     # )
     # # latest_checkpoint = tf.train.latest_checkpoint(filepath)
     # filepath = os.path.join(".", "training_checkpoints")
@@ -57,7 +57,7 @@ if __name__ == "__main__":
     line_floats = line_ints / 128.0
     print("input_string", line_floats)
 
-    scalars, features = model.predict(line_floats)
+    scalars, features, identities = model.predict(line_floats)
     scalar_regularization_avg = np.array(model_params["scalar_regularization_avg"])
     scalar_regularization_stddev = np.array(
         model_params["scalar_regularization_stddev"]
@@ -67,6 +67,7 @@ if __name__ == "__main__":
         scalars.flatten() * scalar_regularization_stddev
     ) + scalar_regularization_avg
     features = features.flatten()
+    identities = identities.flatten()
     # loaded_pca = pickle.load(open(SKLEARN_PCA_FILE, "rb"))
 
     # print("raw_features", features)
@@ -75,15 +76,16 @@ if __name__ == "__main__":
 
     print("features", features)
     print("scalars", scalars)
+    print("identities", identities)
 
-    print("colors")
+    print("manaCost")
 
     card = dict()
     card["name"] = line
 
     # costs
     cost = []
-    for [color, idx] in model_params["colors"].items():
+    for [color, idx] in model_params["manaCost"].items():
         print(
             "  color ", color, "\t", scalars[idx], int(round(scalars[idx])),
         )
@@ -101,6 +103,27 @@ if __name__ == "__main__":
 
     print("cost", "".join(cost))
     card["manaCost"] = "".join(sorted(cost, key=lambda x: len(x) + ord(x[1]) / 128.0))
+
+    # color identities
+    max_identity_idxes = []
+    for i in range(len(model_params["color_identities"])):
+        max_idx = np.argmax(identities)
+        print("identities max idx:\t", max_idx, "\t", identities[max_idx])
+        if i == 0:
+            threshold = max(0, identities[max_idx]) ** 0.99
+        # print("threshold", threshold)
+        if len(max_identity_idxes) != 0 and identities[max_idx] < threshold:  # 0.05:
+            break
+        max_identity_idxes.append(max_idx)
+        identities[max_idx] = threshold - 1
+
+    identity_strings = []
+    for [key, val] in model_params["color_identities"].items():
+        for max_idx in max_identity_idxes:
+            if val == max_idx:
+                identity_strings.append(key)
+
+    card["colorIdentity"] = identity_strings
 
     # types
     for attr in model_params["class_params"]:

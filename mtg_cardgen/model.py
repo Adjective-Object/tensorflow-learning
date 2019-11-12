@@ -1,4 +1,5 @@
 import tensorflow as tf
+import numpy as np
 
 # pulled from tutorial at
 # https://www.tensorflow.org/tutorials/quickstart/beginner
@@ -10,6 +11,19 @@ def subsequence(first, *args):
         cur = arg(cur)
 
     return cur
+
+
+def sig_to_plusminus1(in_layer, name=None):
+    to_add = np.empty((1, in_layer.shape[1]))
+    to_add.fill(-0.5)
+    to_add_tensor = tf.keras.backend.constant(to_add)
+    biased_input = tf.keras.layer.add([in_layer, to_add_tensor])
+
+    to_mul = np.empty((1, in_layer.shape[1]))
+    to_mul.fill(2)
+    to_mul_layer = tf.keras.backend.constant(to_mul)
+
+    return tf.keras.layers.multiply([biased_input, to_mul_layer], name=name)
 
 
 def build_model(
@@ -30,20 +44,30 @@ def build_model(
     text_input = tf.keras.Input(shape=(input_string_length,), name="text_input")
     percep_chain = subsequence(
         text_input,
-        tf.keras.layers.Dense(64, name="percep_1", activation="linear"),
-        tf.keras.layers.Dense(64, name="percep_2", activation="linear"),
+        tf.keras.layers.Dense(128, name="percep_1", activation="linear"),
+        tf.keras.layers.Dropout(0.4),
+        tf.keras.layers.Dense(128, name="percep_2", activation="linear"),
+        tf.keras.layers.Dropout(0.4),
+        tf.keras.layers.Dense(128, name="percep_sigmoid", activation="sigmoid"),
     )
 
     lstm_chain = subsequence(
         text_input,
         tf.keras.layers.Reshape(target_shape=(1, input_string_length)),
         tf.keras.layers.LSTM(
-            64, name="lstm_1", activation="relu", return_sequences=True
+            512, name="lstm_1", activation="relu", return_sequences=True
         ),
+        tf.keras.layers.Dropout(0.4),
         tf.keras.layers.LSTM(
-            64, name="lstm_2", activation="relu", return_sequences=True
+            512, name="lstm_2", activation="relu", return_sequences=True
+        ),
+        tf.keras.layers.Dropout(0.4),
+        tf.keras.layers.LSTM(
+            512, name="lstm_3", activation="relu", return_sequences=True
         ),
         tf.keras.layers.Flatten(),
+        tf.keras.layers.Dropout(0.4),
+        tf.keras.layers.Dense(512, name="lstm_sigmoid", activation="sigmoid"),
     )
 
     inferred_features = tf.keras.layers.concatenate(
@@ -62,32 +86,45 @@ def build_model(
 
     # flat = tf.keras.layers.Flatten()(conv)
 
-    card_type_predictor = subsequence(
+    identity_predictor_sig = subsequence(
         inferred_features,
         tf.keras.layers.Dropout(0.2),
-        tf.keras.layers.Dense(
-            64, name="card_type_predictor_hidden_layer", activation="relu"
-        ),
-        tf.keras.layers.Dense(
-            features_length, name="card_type_predictor", activation="softmax",
-        ),
-    )
-
-    identity_input = tf.keras.layers.concatenate(
-        [card_type_predictor, inferred_features],
-        axis=1,
-        name="predicted_types_with_inferred_features",
-    )
-
-    identity_predictor = subsequence(
-        identity_input,
         tf.keras.layers.Dense(
             64, name="identity_predictor_hidden_layer", activation="relu"
         ),
         tf.keras.layers.Dense(
-            identities_length, name="identity_predictor", activation="softmax",
+            identities_length,
+            name="identity_predictor_non_normalized",
+            activation="sigmoid",
         ),
     )
+
+    identity_predictor = sig_to_plusminus1(
+        identity_predictor_sig, name="identity_predictor"
+    )
+
+    card_type_input = tf.keras.layers.concatenate(
+        [inferred_features, identity_predictor],
+        axis=1,
+        name="predicted_types_with_inferred_identity",
+    )
+
+    card_type_offset = tf.keras.backend.constant(np)
+
+    card_type_predictor_sig = subsequence(
+        card_type_input,
+        tf.keras.layers.Dropout(0.2),
+        tf.keras.layers.Dense(
+            512, name="card_type_predictor_hidden_layer", activation="relu"
+        ),
+        tf.keras.layers.Dense(
+            features_length,
+            name="card_type_predictor_non_normalized",
+            activation="sigmoid",
+        ),
+    )
+
+    card_type_predictor = sig_to_plusminus1(card_type_sig, name="card_type")
 
     features_with_percep_chain_and_identities = tf.keras.layers.concatenate(
         [card_type_predictor, inferred_features, identity_predictor],
@@ -98,8 +135,9 @@ def build_model(
     # predict the scalars based off of the features.
     scalar_predictor = subsequence(
         features_with_percep_chain_and_identities,
+        tf.keras.layers.Dropout(0.4),
         tf.keras.layers.Dense(
-            64, name="scalar_predictor_hidden_layer", activation="relu"
+            128, name="scalar_predictor_hidden_layer", activation="relu"
         ),
         tf.keras.layers.Dropout(0.4),
         tf.keras.layers.Dense(
@@ -132,9 +170,9 @@ def build_model(
             "scalar_predictor": "MSLE",
         },
         loss_weights={
+            "identity_predictor": 1,
             "card_type_predictor": 1,
-            "identity_predictor": 2,
-            "scalar_predictor": 10,
+            "scalar_predictor": 1,
         },
         metrics={
             "card_type_predictor": ["accuracy"],

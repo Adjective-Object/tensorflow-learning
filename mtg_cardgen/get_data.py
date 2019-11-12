@@ -77,7 +77,7 @@ def encode_card_intval(intstr):
 
 def get_model_parameters(all_cards):
     mana_costs = set([GENERIC_MANA_KEY])
-    color_identities = set([PROP_KEY_NONE])
+    color_identities = set()
     basetypes = set([PROP_KEY_NONE])
     subtypes = set([PROP_KEY_NONE])
     supertypes = set([PROP_KEY_NONE])
@@ -218,9 +218,6 @@ def generate_numpy_from_json(all_cards):
             for color_id in card["colorIdentity"]:
                 idx = model_params["color_identities"][color_id]
                 output_color_identities[ind, idx] = 1
-        if "colorIdentity" not in card or 0 == len(card["colorIdentity"]):
-            idx = model_params["color_identities"][PROP_KEY_NONE]
-            output_color_identities[ind, idx] = 1
 
         # populate other scalars
         for [intKeyIndex, intKey] in enumerate(other_keys_ints):
@@ -277,7 +274,7 @@ def generate_numpy_from_json(all_cards):
     print("output_color_identities.shape", output_color_identities.shape)
 
     print(
-        "wrote %s, %s, %s"
+        "wrote %s, %s, %s, %s"
         % (NP_INPUTS_FILE, NP_FEATURES_FILE, NP_SCALARS_FILE, NP_IDENTITIES_FILE)
     )
 
