@@ -6,7 +6,13 @@ from datetime import datetime
 
 if __name__ == "__main__":
     print("loading data")
-    features = np.load(os.path.join("data", "allCards_classes.npy"), allow_pickle=False)
+    types = np.load(os.path.join("data", "allCards_types.npy"), allow_pickle=False)
+    subtypes = np.load(
+        os.path.join("data", "allCards_subtypes.npy"), allow_pickle=False
+    )
+    supertypes = np.load(
+        os.path.join("data", "allCards_supertypes.npy"), allow_pickle=False
+    )
     names = np.load(os.path.join("data", "allCards_names.npy"), allow_pickle=False)
     scalars = np.load(os.path.join("data", "allCards_scalars.npy"), allow_pickle=False)
     identities = np.load(
@@ -14,21 +20,28 @@ if __name__ == "__main__":
     )
 
     # network is failing. Let's try overfitting and see if it works
-    # names = names[20:30]
-    # features = features[20:30]
-    # scalars = scalars[20:30]
-    # identities = identities[20:30]
+    names = names[20:2000]
+    types = types[20:2000]
+    subtypes = subtypes[20:2000]
+    supertypes = supertypes[20:2000]
+    scalars = scalars[20:2000]
+    identities = identities[20:2000]
 
     print("names.shape", names.shape)
-    print(
-        "features.shape", features.shape,
-    )
+    print("types.shape", types.shape)
+    print("subtypes.shape", subtypes.shape)
+    print("supertypes.shape", supertypes.shape)
     print("scalars.shape", scalars.shape)
 
     # build the model
     print("building model")
     model = build_model(
-        names.shape[1], features.shape[1], scalars.shape[1], identities.shape[1]
+        names.shape[1],
+        identities.shape[1],
+        types.shape[1],
+        subtypes.shape[1],
+        supertypes.shape[1],
+        scalars.shape[1],
     )
     model.summary()
     tf.keras.utils.plot_model(model, show_shapes=True, expand_nested=True)
@@ -37,33 +50,29 @@ if __name__ == "__main__":
 
     # split features into training and validation sets
     random_sample_indices = np.random.choice(
-        features.shape[0], int(features.shape[0] * 0.12), replace=False
+        names.shape[0], int(names.shape[0] * 0.12), replace=False
     )
 
     test_names = names[random_sample_indices]
-    test_card_types = features[random_sample_indices]
+    test_types = types[random_sample_indices]
+    test_subtypes = subtypes[random_sample_indices]
+    test_supertypes = supertypes[random_sample_indices]
     test_scalars = scalars[random_sample_indices]
     test_identities = identities[random_sample_indices]
 
     training_names = np.delete(names, random_sample_indices, axis=0)
-    training_card_types = np.delete(features, random_sample_indices, axis=0)
+    training_types = np.delete(types, random_sample_indices, axis=0)
+    training_subtypes = np.delete(subtypes, random_sample_indices, axis=0)
+    training_supertypes = np.delete(supertypes, random_sample_indices, axis=0)
     training_scalars = np.delete(scalars, random_sample_indices, axis=0)
     training_identities = np.delete(identities, random_sample_indices, axis=0)
 
     del names
-    del features
+    del types
+    del subtypes
+    del supertypes
     del scalars
     del identities
-
-    print(
-        "test_card_types.shape", test_card_types.shape,
-    )
-    print("test_names.shape", test_names.shape)
-    print(
-        "training_card_types.shape", training_card_types.shape,
-    )
-    print("training_names.shape", training_names.shape)
-    print("training_identities.shape", training_identities.shape)
 
     # set up periodic saving of model
     checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
@@ -90,16 +99,20 @@ if __name__ == "__main__":
         training_names,  # input
         [
             training_identities,
-            # training_card_types,
-            # training_scalars,
-        ],  # Expected outputs
-        epochs=50,
+            training_types,
+            training_subtypes,
+            training_supertypes,
+            training_scalars,
+        ],
+        epochs=200,
         validation_data=(
             test_names,
             [
                 test_identities,
-                # test_scalars,
-                # test_card_types,
+                test_types,
+                test_subtypes,
+                test_supertypes,
+                test_scalars,
             ],
         ),
         # batch_size=100,
@@ -112,4 +125,4 @@ if __name__ == "__main__":
 
     model.save("trained_mtg.h5")
 
-    # model.evaluate(test_names, [test_scalars, test_card_types], verbose=2)
+    # model.evaluate(test_names, [test_scalars, test_types], verbose=2)

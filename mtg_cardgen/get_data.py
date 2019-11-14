@@ -13,13 +13,12 @@ DATA_DIR = "data"
 DOWNLOAD_PATH_XZ = os.path.join(DATA_DIR, "allCards.xz")
 DOWNLOAD_PATH_JSON = os.path.join(DATA_DIR, "allCards.json")
 NP_SCALARS_FILE = os.path.join(DATA_DIR, "allCards_scalars")
-NP_FEATURES_FILE = os.path.join(DATA_DIR, "allCards_classes")
+NP_FEATURES_FILE_PREFIX = os.path.join(DATA_DIR, "allCards_")
 NP_IDENTITIES_FILE = os.path.join(DATA_DIR, "allCards_identities")
 NP_INPUTS_FILE = os.path.join(DATA_DIR, "allCards_names")
 SKLEARN_PCA_FILE = os.path.join(DATA_DIR, "allCards_pca.pickle")
 MODEL_CONFIG_JSON_FILE = os.path.join(DATA_DIR, "modelConfig.json")
 GENERIC_MANA_KEY = "__Generic"
-PROP_KEY_NONE = "__None"
 
 
 def ensure_data_downloaded():
@@ -78,9 +77,12 @@ def encode_card_intval(intstr):
 def get_model_parameters(all_cards):
     mana_costs = set([GENERIC_MANA_KEY])
     color_identities = set()
-    basetypes = set([PROP_KEY_NONE])
-    subtypes = set([PROP_KEY_NONE])
-    supertypes = set([PROP_KEY_NONE])
+    basetypes = set()
+    subtypes = set()
+    # Tribal is a Type and not a Supertype in allcards json.
+    # we consider it a supertype, so ignore it when generating types,
+    # and assign it as a supertype instead.
+    supertypes = set([])
     printings = set()
     namelens = dict()
     longestname = 0
@@ -131,14 +133,9 @@ def get_model_parameters(all_cards):
         "totalnamelegths": totalnamelegths,
         "manaCost": lookup_map_from_set(mana_costs),
         "types": lookup_map_from_set(basetypes),
-        "subtypes": lookup_map_from_set(subtypes, initial_offset=len(basetypes)),
-        "supertypes": lookup_map_from_set(
-            supertypes, initial_offset=len(basetypes) + len(supertypes),
-        ),
-        "printings": lookup_map_from_set(
-            printings,
-            initial_offset=len(basetypes) + len(supertypes) + len(color_costs),
-        ),
+        "subtypes": lookup_map_from_set(subtypes),
+        "supertypes": lookup_map_from_set(supertypes),
+        "printings": lookup_map_from_set(printings,),
         "color_identities": lookup_map_from_set(color_identities),
     }
 
@@ -165,10 +162,6 @@ def generate_numpy_from_json(all_cards):
         # "printings",
     ]
 
-    total_classes_lengths = sum(
-        (len(model_params[enum_index]) for enum_index in class_params)
-    )
-
     other_keys_ints = [
         "power",
         "toughness",
@@ -181,9 +174,7 @@ def generate_numpy_from_json(all_cards):
     print("converting into input/output vectors")
 
     allcards_values = sorted(all_cards.values(), key=lambda x: x["name"])
-    feature_vector_size = (
-        total_classes_lengths + len(other_keys_ints) + model_params["longestname"]
-    )
+
     input_strings = np.zeros((len(allcards_values), model_params["longestname"]))
     output_scalars = np.zeros(
         (len(allcards_values), len(model_params["manaCost"]) + len(other_keys_ints))
@@ -191,8 +182,12 @@ def generate_numpy_from_json(all_cards):
     output_color_identities = np.zeros(
         (len(allcards_values), len(model_params["color_identities"]))
     )
-    raw_labels = np.zeros((len(allcards_values), feature_vector_size))
-    # raw_labels[:, :] = -1
+    output_class_vectors = {}
+    for class_param in class_params:
+        feature_vector_size = len(model_params[class_param])
+        output_class_vectors[class_param] = np.zeros(
+            (len(allcards_values), feature_vector_size)
+        )
 
     ind = 0
     for card in allcards_values:
@@ -225,16 +220,16 @@ def generate_numpy_from_json(all_cards):
                 output_scalars[ind][-1 - intKeyIndex] = encode_card_intval(card[intKey])
 
         # turn on flags for each of the enum classes
-        for propKey in class_params:
-            if propKey in card:
-                prop = card[propKey]
-                if len(prop) == 0 and PROP_KEY_NONE in model_params[propKey]:
-                    model_params[propKey][PROP_KEY_NONE] = 1
-                    continue
+        for class_param in class_params:
+            if class_param in card:
+                prop = card[class_param]
+                # if len(prop) == 0 and PROP_KEY_NONE in model_params[class_param]:
+                #     model_params[class_param][PROP_KEY_NONE] = 1
+                #     continue
 
                 for prop_enum_val in prop:
-                    prop_index = model_params[propKey][prop_enum_val]
-                    raw_labels[ind][prop_index] = 1
+                    prop_index = model_params[class_param][prop_enum_val]
+                    output_class_vectors[class_param][ind, prop_index] = 1
 
         ind += 1
 
@@ -249,52 +244,95 @@ def generate_numpy_from_json(all_cards):
 
     print("writing outputs..")
 
-    # output_labels = reduce_dimensionality(raw_labels)
-    output_labels = raw_labels
-
     print("model params", json.dumps(model_params, indent=2))
 
     for idx in range(20, 30):
         print("cards[%s]" % idx, json.dumps(allcards_values[idx], indent=2))
         print("input_strings[%s] = " % idx, input_strings[idx])
-        print("output_labels[%s] = " % idx, output_labels[idx])
         print("output_scalars[%s] = " % idx, output_scalars[idx])
         print("output_color_identities[%s] = " % idx, output_color_identities[idx])
+        for class_param in class_params:
+            print(
+                "output_class_%s[%s] = " % (class_param, idx),
+                output_class_vectors[class_param][idx],
+            )
 
     np.save(NP_INPUTS_FILE, input_strings, allow_pickle=False)
-    np.save(NP_FEATURES_FILE, output_labels, allow_pickle=False)
     np.save(NP_SCALARS_FILE, output_scalars, allow_pickle=False)
     np.save(NP_IDENTITIES_FILE, output_color_identities, allow_pickle=False)
+    for class_param in class_params:
+        param_file = NP_FEATURES_FILE_PREFIX + class_param
+        np.save(param_file, output_class_vectors[class_param], allow_pickle=False)
+
     with open(MODEL_CONFIG_JSON_FILE, "w") as f:
         f.write(json.dumps(model_params, indent=2))
 
     print("input_strings.shape", input_strings.shape)
-    print("output_labels.shape", output_labels.shape)
+    for class_param in class_params:
+        print(
+            "output_class_%s.shape" % class_param,
+            output_class_vectors[class_param].shape,
+        )
     print("output_scalars.shape", output_scalars.shape)
     print("output_color_identities.shape", output_color_identities.shape)
 
-    print(
-        "wrote %s, %s, %s, %s"
-        % (NP_INPUTS_FILE, NP_FEATURES_FILE, NP_SCALARS_FILE, NP_IDENTITIES_FILE)
-    )
 
-
-if __name__ == "__main__":
+def get_corpus():
     ensure_data_downloaded()
     allCards = json.load(open(DOWNLOAD_PATH_JSON))
-    print("removing illegal cards")
+    # print("removing illegal cards")
 
+    legalCardTypes = [
+        # "Hero",
+        # "Phenomenon",
+        "Land",
+        "Artifact",
+        "Enchantment",
+        "Planeswalker",
+        # "Conspiracy",
+        "Creature",
+        "Sorcery",
+        # "Scheme",
+        # "Summon",
+        "Tribal",
+        "Instant",
+        # "Plane",
+    ]
     regularCards = dict(
         filter(
-            lambda item: not any(
-                [
+            lambda item: item[1]["layout"] not in ["meld", "vanguard"]
+            and not any((t not in legalCardTypes for t in item[1]["types"]))
+            and not any(
+                (
                     weirdPrinting in item[1]["printings"]
                     # no unglued, no unhinged, no unstable, no ponies
                     for weirdPrinting in ("UGL", "UNH", "UST", "PTG")
-                ],
+                ),
             ),
             allCards.items(),
         )
     )
 
+    types = set()
+    for card in regularCards.values():
+        for t in card["types"]:
+            types.add(t)
+    # print(types)
+
+    # force tribal to be a supertype
+    for [index, card] in regularCards.items():
+        if "Tribal" in card["types"]:
+            card["types"].remove("Tribal")
+            card["supertypes"].append("Tribal")
+            regularCards[index] = card
+            # print("TRIBAL FIX", card)
+            # print("TRIBAL FIX", regularCards[index])
+
+    return regularCards
+
+
+if __name__ == "__main__":
+    regularCards = get_corpus()
+
     generate_numpy_from_json(regularCards)
+

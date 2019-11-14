@@ -12,125 +12,217 @@ def subsequence(first, *args):
     return cur
 
 
+def lstm_chain(
+    name,
+    inputs,
+    n_layers=2,
+    layer_size=32,
+    per_layer_dropout=0.2,
+    activation="softmax",
+    output_layer_size=None,
+):
+    shared_inputs = (
+        tf.keras.layers.concatenate(inputs) if len(inputs) > 1 else inputs[0]
+    )
+
+    members = [
+        tf.keras.layers.Reshape(target_shape=(1, shared_inputs.shape[1])),
+    ]
+    for i in range(1, n_layers + 1):
+        members.append(
+            tf.keras.layers.LSTM(
+                layer_size,
+                name="%s_LSTM_%s" % (name, i),
+                activation="tanh",
+                return_sequences=True,
+            )
+        )
+        if per_layer_dropout > 0:
+            members.append(
+                tf.keras.layers.Dropout(
+                    per_layer_dropout, name="%s_dropout_%s" % (name, i)
+                )
+            )
+
+    members.append(tf.keras.layers.Flatten())
+    personal_percep_chain = subsequence(shared_inputs, *members)
+
+    return tf.keras.layers.Dense(
+        layer_size if output_layer_size is None else output_layer_size,
+        name=name,
+        activation=activation,
+    )(personal_percep_chain)
+
+
+def perceptron(
+    name,
+    inputs,
+    n_layers=2,
+    layer_size=32,
+    output_layer_size=None,
+    per_layer_dropout=0.2,
+    activation="softmax",
+):
+    shared_inputs = (
+        tf.keras.layers.concatenate(inputs) if len(inputs) > 1 else inputs[0]
+    )
+
+    members = []
+    for i in range(1, n_layers + 1):
+        members.append(
+            tf.keras.layers.Dense(
+                layer_size, name="%s_percep_%s" % (name, i), activation="relu"
+            )
+        )
+        if per_layer_dropout > 0:
+            members.append(
+                tf.keras.layers.Dropout(
+                    per_layer_dropout, name="%s_dropout_%s" % (name, i)
+                )
+            )
+
+    personal_percep_chain = subsequence(shared_inputs, *members)
+
+    return tf.keras.layers.Dense(
+        layer_size if output_layer_size is None else output_layer_size,
+        name=name,
+        activation=activation,
+    )(personal_percep_chain)
+
+
 def build_model(
-    input_string_length, features_length, scalars_length, identities_length
+    input_string_length,
+    identities_length,
+    types_length,
+    subtypes_length,
+    supertypes_length,
+    scalars_length,
 ):
     print(
-        "building model with ",
-        "input_string_length =",
-        input_string_length,
-        "features_length =",
-        features_length,
-        "scalars_length =",
-        scalars_length,
-        "identities_length =",
-        identities_length,
+        "build_model%s"
+        % str(
+            (
+                input_string_length,
+                types_length,
+                subtypes_length,
+                supertypes_length,
+                scalars_length,
+                identities_length,
+            )
+        )
     )
 
     text_input = tf.keras.Input(shape=(input_string_length,), name="text_input")
-    with tf.name_scope("percep_chain"):
-        percep_chain = subsequence(
-            text_input,
-            tf.keras.layers.Dense(32, name="percep_1", activation="relu"),
-            tf.keras.layers.Dropout(0.2),
-            tf.keras.layers.Dense(32, name="percep_2", activation="relu"),
-            tf.keras.layers.Dropout(0.2),
-            tf.keras.layers.Dense(32, name="percep_3", activation="relu"),
-            tf.keras.layers.Dropout(0.2),
-            tf.keras.layers.Dense(32, name="percep_4", activation="relu"),
-        )
 
-    with tf.name_scope("lstm_chain"):
-        lstm_chain = subsequence(
-            text_input,
-            tf.keras.layers.Reshape(target_shape=(1, input_string_length)),
-            tf.keras.layers.LSTM(
-                32, name="lstm_1", activation="tanh", return_sequences=True
-            ),
-            tf.keras.layers.Dropout(0.2),
-            tf.keras.layers.LSTM(
-                32, name="lstm_2", activation="tanh", return_sequences=True
-            ),
-            tf.keras.layers.Dropout(0.2),
-            tf.keras.layers.LSTM(
-                32, name="lstm_3", activation="tanh", return_sequences=True
-            ),
-            # tf.keras.layers.LSTM(
-            #     128, name="lstm_4", activation="tanh", return_sequences=True
+    identity_predictor = perceptron(
+        "identity_predictor",  # name
+        [
+            # perceptron(
+            #     "identity_predictor_perceptron",  # name
+            #     [text_input],
+            #     n_layers=3,
+            #     layer_size=1024,
+            #     per_layer_dropout=0.4,
+            #     activation="relu",
             # ),
-            tf.keras.layers.Flatten(),
-            tf.keras.layers.Activation("sigmoid"),
-        )
-
-    # inferred_features = lstm_chain
-
-    inferred_features = tf.keras.layers.concatenate(
-        [percep_chain, lstm_chain], axis=1, name="inferred_features_from_text",
+            lstm_chain(
+                "identity_predictor_lstm",  # name
+                [text_input],
+                n_layers=3,
+                layer_size=1024,
+                output_layer_size=128,
+                per_layer_dropout=0.4,
+                activation="sigmoid",
+            ),
+        ],
+        n_layers=2,
+        layer_size=2048,
+        per_layer_dropout=0.4,
+        output_layer_size=identities_length,
     )
 
-    # conv = tf.keras.layers.Conv1D(32, 1, use_bias=True, name="conb")(lstm)
-    # inner_lstm_1 = tf.keras.layers.LSTM(32, name="inner_lstm_1", return_sequences=True)(
-    #     input_lstm
+    subtypes_predictor = perceptron(
+        "subtypes_predictor",  # name
+        [text_input],
+        n_layers=1,
+        layer_size=8,
+        per_layer_dropout=0.4,
+        output_layer_size=subtypes_length,
+    )
+
+    supertypes_predictor = perceptron(
+        "supertypes_predictor",  # name
+        [text_input],
+        n_layers=1,
+        layer_size=8,
+        per_layer_dropout=0.4,
+        output_layer_size=supertypes_length,
+    )
+
+    type_predictor = perceptron(
+        "types_predictor",
+        [text_input],
+        n_layers=1,
+        layer_size=8,
+        per_layer_dropout=0,
+        output_layer_size=types_length,
+    )
+
+    scalar_predictor = perceptron(
+        "scalar_predictor",
+        [text_input],
+        n_layers=1,
+        layer_size=8,
+        per_layer_dropout=0,
+        output_layer_size=scalars_length,
+    )
+
+    # # predict the scalars based off of the features.
+    # scalar_predictor = perceptron(
+    #     "scalar_predictor",  # name
+    #     [
+    #         identity_predictor,
+    #         perceptron(
+    #             "scalar_predictor_perceptron",  # name
+    #             [text_input],
+    #             n_layers=2,
+    #             layer_size=32,
+    #             per_layer_dropout=0.2,
+    #             activation="relu",
+    #         ),
+    #         lstm_chain(
+    #             "scalar_predictor_lstm",  # name
+    #             [text_input],
+    #             n_layers=2,
+    #             layer_size=32,
+    #             per_layer_dropout=0.2,
+    #             activation="sigmoid",
+    #         ),
+    #     ],
+    #     n_layers=3,
+    #     layer_size=32,
+    #     per_layer_dropout=0,
+    #     activation="relu",
+    #     output_layer_size=scalars_length,
     # )
-    # inner_lstm_2 = tf.keras.layers.LSTM(32, name="inner_lstm_2", return_sequences=True)(
-    #     inner_lstm_1
-    # )
-    # output_lstm = tf.keras.layers.LSTM(32, name="output_lstm")(inner_lstm_2)
 
-    # flat = tf.keras.layers.Flatten()(conv)
-
-    identity_predictor = subsequence(
-        inferred_features,
-        tf.keras.layers.Dense(
-            32, name="identity_predictor_hidden_layer", activation="relu"
-        ),
-        tf.keras.layers.Dense(
-            32, name="identity_predictor_hidden_layer_2", activation="linear"
-        ),
-        tf.keras.layers.Dense(
-            identities_length, name="identity_predictor", activation="sigmoid",
-        ),
-    )
-
-    card_type_input = tf.keras.layers.concatenate(
-        [inferred_features, identity_predictor],
-        axis=1,
-        name="predicted_types_with_inferred_identity",
-    )
-
-    card_type_predictor = subsequence(
-        card_type_input,
-        tf.keras.layers.Dense(
-            512, name="card_type_predictor_hidden_layer", activation="relu"
-        ),
-        tf.keras.layers.Dense(
-            features_length, name="card_type_predictor", activation="sigmoid",
-        ),
-    )
-
-    features_with_percep_chain_and_identities = tf.keras.layers.concatenate(
-        [card_type_predictor, inferred_features, identity_predictor],
-        axis=1,
-        name="predicted_types_and_identities_with_inferred_features",
-    )
-
-    # predict the scalars based off of the features.
-    scalar_predictor = subsequence(
-        features_with_percep_chain_and_identities,
-        tf.keras.layers.Dense(
-            128, name="scalar_predictor_hidden_layer", activation="relu"
-        ),
-        tf.keras.layers.Dense(
-            scalars_length, name="scalar_predictor", activation="relu"
-        ),
-    )
+    for x in [
+        identity_predictor,
+        type_predictor,
+        subtypes_predictor,
+        supertypes_predictor,
+        scalar_predictor,
+    ]:
+        print(x.shape)
 
     model = tf.keras.models.Model(
         inputs=text_input,
         outputs=[
-            identity_predictor
-            # card_type_predictor,
-            # scalar_predictor,
+            identity_predictor,
+            type_predictor,
+            subtypes_predictor,
+            supertypes_predictor,
+            scalar_predictor,
         ],
         name="mtg_scalar_and_classes_from_name",
     )
@@ -150,18 +242,24 @@ def build_model(
         # for multi-class (e.g. multi-hot, not one-hot). use categorical_hinge
         loss={
             "identity_predictor": "binary_crossentropy",
-            # "card_type_predictor": "categorical_hinge",
-            # "scalar_predictor": "MSLE",
+            "types_predictor": "binary_crossentropy",
+            "supertypes_predictor": "binary_crossentropy",
+            "subtypes_predictor": "binary_crossentropy",
+            "scalar_predictor": "MSLE",
         },
         loss_weights={
-            "identity_predictor": 1,
-            # "card_type_predictor": 1,
-            # "scalar_predictor": 1,
+            "identity_predictor": 1.0,
+            "types_predictor": 0.0,
+            "supertypes_predictor": 0.0,
+            "subtypes_predictor": 0.0,  # merfolk, etc. We don't care as much about the accuracy here.
+            "scalar_predictor": 0.0,
         },
         metrics={
-            "identity_predictor": ["accuracy"],
-            # "card_type_predictor": ["accuracy"],
-            # "scalar_predictor": ["mean_absolute_error"],
+            "identity_predictor": ["categorical_accuracy"],
+            "types_predictor": ["categorical_accuracy"],
+            "supertypes_predictor": ["categorical_accuracy"],
+            "subtypes_predictor": ["categorical_accuracy"],
+            "scalar_predictor": ["mean_absolute_error"],
         },
     )
 

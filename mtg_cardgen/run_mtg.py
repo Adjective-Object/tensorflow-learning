@@ -58,17 +58,23 @@ if __name__ == "__main__":
     print("input_string", line_floats)
 
     # identities, features, scalars = model.predict(line_floats)
-    identities = model.predict(line_floats)
+    identities, types, subtypes, supertypes, scalars = model.predict(line_floats)
     scalar_regularization_avg = np.array(model_params["scalar_regularization_avg"])
     scalar_regularization_stddev = np.array(
         model_params["scalar_regularization_stddev"]
     )
 
-    # scalars = (
-    #     scalars.flatten() * scalar_regularization_stddev
-    # ) + scalar_regularization_avg
-    # features = features.flatten()
+    scalars = (
+        scalars.flatten() * scalar_regularization_stddev
+    ) + scalar_regularization_avg
     identities = identities.flatten()
+
+    computed_classes = {
+        "types": types.flatten(),
+        "subtypes": subtypes.flatten(),
+        "supertypes": supertypes.flatten(),
+    }
+
     # loaded_pca = pickle.load(open(SKLEARN_PCA_FILE, "rb"))
 
     # print("raw_features", features)
@@ -76,10 +82,10 @@ if __name__ == "__main__":
     # features = loaded_pca.inverse_transform(features)
 
     print("identities", identities)
-    # print("features", features)
-    # print("scalars", scalars)
-
-    print("manaCost")
+    print("types", types)
+    # print("subtypes", subtypes)
+    print("supertypes", supertypes)
+    print("scalars", scalars)
 
     card = dict()
     card["name"] = line
@@ -91,9 +97,34 @@ if __name__ == "__main__":
             identity_strings.append(key)
 
     card["colorIdentity"] = identity_strings
-    print(identity_strings)
+    # types
+    attr_thresholds = {"types": 0.3222, "subtypes": 0.3222, "supertypes": 0.3222}
+    for attr in model_params["class_params"]:
+        if attr == "subtypes":
+            continue
 
-    sys.exit(0)
+        lower_bound = min(model_params[attr].values())
+        upper_bound = 1 + max(model_params[attr].values())
+        features_slice = computed_classes[attr][lower_bound:upper_bound]
+
+        print(
+            attr,
+            "average",
+            np.average(features_slice),
+            "max",
+            np.max(features_slice),
+            "std",
+            np.std(features_slice),
+        )
+
+        attr_values = []
+        for [key, val] in model_params[attr].items():
+            if val >= attr_thresholds[attr]:
+                attr_values.append(key)
+
+        # print(attr, attr_values)
+
+        card[attr] = attr_values
 
     # costs
     cost = []
@@ -115,35 +146,6 @@ if __name__ == "__main__":
 
     print("cost", "".join(cost))
     card["manaCost"] = "".join(sorted(cost, key=lambda x: len(x) + ord(x[1]) / 128.0))
-
-    # types
-    for attr in model_params["class_params"]:
-        lower_bound = min(model_params[attr].values())
-        upper_bound = 1 + max(model_params[attr].values())
-        features_slice = features[lower_bound:upper_bound]
-        # print(features_slice)
-        max_idxes = []
-        threshold = 0
-        for i in range(0, 3):
-            max_idx = np.argmax(features_slice)
-            print("max idx:\t", max_idx, "\t", features_slice[max_idx])
-            if i == 0:
-                threshold = max(0, features_slice[max_idx]) / 2
-            # print("threshold", threshold)
-            if len(max_idxes) != 0 and features_slice[max_idx] < threshold:  # 0.05:
-                break
-            max_idxes.append(max_idx)
-            features_slice[max_idx] = threshold - 1
-
-        attr_values = []
-        for [key, val] in model_params[attr].items():
-            for max_idx in max_idxes:
-                if val == (max_idx + lower_bound):
-                    attr_values.append(key)
-
-        print(attr, max_idx, attr_values)
-
-        card[attr] = attr_values
 
     # attributes
     for [i, attr] in enumerate(model_params["other_keys_ints"]):
