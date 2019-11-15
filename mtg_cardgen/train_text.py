@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import json
 import random
@@ -102,46 +103,125 @@ def create_corpus_arrays(names, sequence_length, vocab_size):
 #     10,
 # )
 
+
+class CustomTrainingCheckpoint(tf.keras.callbacks.Callback):
+    def __init__(self, filepath=""):
+        self.filepath = filepath
+
+    def on_epoch_end(self, epoch, logs):
+        if not os.path.exists(self.filepath):
+            os.mkdir(self.filepath)
+
+        model_path = os.path.join(self.filepath, "trained_text_mtg_%04d.h5" % epoch)
+        print("saving model for epoch %d to %s" % (epoch, model_path))
+        self.model.save(model_path)
+
+
+def get_latest_model(checkpoint_dir):
+    if not os.path.isdir(checkpoint_dir):
+        print("did not find saved model folder")
+        return (None, 0)
+
+    model_name_regex = r"trained_text_mtg_(\d+)\.h5"
+
+    model_filenames = [
+        f for f in os.listdir(checkpoint_dir) if re.match(model_name_regex, f)
+    ]
+    model_filenames.sort()
+    model_filenames.reverse()
+    if len(model_filenames) == 0:
+        print("did not find any saved models")
+        return (None, 0)
+
+    while len(model_filenames) != 0:
+        try:
+            model_filename = model_filenames[0]
+            model_path = os.path.join(checkpoint_dir, model_filename)
+            print("trying to restore model from path", model_path)
+            match = re.match(model_name_regex, model_filename)
+            epoch_num = int(match.groups()[0])
+            # model_path_no_ext = os.path.splitext(model_path)[0]
+            # print("load!", model_path_no_ext)
+            return (tf.keras.models.load_model(model_path), epoch_num)
+        except:
+            print("error loading ", model_filename)
+            model_filenames = model_filenames[1:]
+
+    print("could not load any of the saved models")
+    return (None, 0)
+
+
 if __name__ == "__main__":
     card_bodies_path = os.path.join(".", "data", "allCards_bodies.json")
+    card_bodies_training_path = os.path.join(
+        ".", "data", "allCards_bodies_validation.npy"
+    )
+    card_bodies_validation_path = os.path.join(
+        ".", "data", "allCards_bodies_training.npy"
+    )
+
     print("reading %s" % card_bodies_path)
     card_bodies = json.load(open(card_bodies_path, "r"))
-
     seen_characters = card_bodies["seen_characters"]
-    card_bodies_data = encode_names(card_bodies["card_bodies"], seen_characters)
 
-    print("dividing data into training and validation")
-    num_in_training = int(len(card_bodies_data) * 0.8)
-    random.shuffle(card_bodies_data)
-    training_set = card_bodies_data[:num_in_training]
-    validation_set = card_bodies_data[num_in_training:]
+    if os.path.isfile(card_bodies_validation_path) and os.path.isfile(
+        card_bodies_training_path
+    ):
+        print("reading training and validation sets from disk")
+        training_set = np.load(card_bodies_training_path, allow_pickle=True)
+        validation_set = np.load(card_bodies_validation_path, allow_pickle=True)
+    else:
+        card_bodies_data = encode_names(card_bodies["card_bodies"], seen_characters)
+
+        print("dividing data into training and validation")
+        num_in_training = int(len(card_bodies_data) * 0.8)
+        random.shuffle(card_bodies_data)
+        training_set = card_bodies_data[:num_in_training]
+        validation_set = card_bodies_data[num_in_training:]
+
+        print("writing training / validation sets for resuming training later")
+        np.save(open(card_bodies_training_path, "wb"), training_set, allow_pickle=True)
+        np.save(
+            open(card_bodies_validation_path, "wb"), validation_set, allow_pickle=True
+        )
 
     print("cards in training set:", len(training_set))
     print("cards in validation set:", len(validation_set))
 
-    NUM_META_BATCHES = 10
-    SEQUENCE_LENGTH = 30
-    EPOCHS_IN_META_BATCH = 8
-    MAX_TRAIN_BATCH_SIZE = 500
+    NUM_EPOCHS = 50
+    SEQUENCE_LENGTH = 60
+    EPOCHS_IN_META_BATCH = 5
+    MAX_TRAIN_BATCH_SIZE = 1000
     MAX_VALIDATION_BATCH_SIZE = 200
     VOCAB_SIZE = len(seen_characters)
 
     print("generating validation set")
 
+    checkpoint_dir = os.path.join(".", "text_training_checkpoints",)
     tensorboard_logdir = os.path.join(
         ".", "text_tensorboard/logs_%s" % (datetime.now().strftime("%Y%m%d-%H%M%S"))
     )
 
-    latest_checkpoint = tf.train.latest_checkpoint(
-        os.path.join(".", "training_checkpoints")
-    )
+    existing_model, initial_epoch = get_latest_model(checkpoint_dir)
 
+    print("building checkpoint callback for path %s" % checkpoint_dir)
+    checkpoint_callback = CustomTrainingCheckpoint(filepath=checkpoint_dir)
     print("building tensorboard callback for path %s" % tensorboard_logdir)
     tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=tensorboard_logdir)
-    model = build_model(SEQUENCE_LENGTH, VOCAB_SIZE)
-    for i in range(NUM_META_BATCHES):
+
+    if existing_model is None:
+        print("building new model")
+        model = build_model(SEQUENCE_LENGTH, VOCAB_SIZE)
+    else:
+        print("resuming training at", initial_epoch)
+        model = existing_model
+
+    for i in range(
+        initial_epoch // EPOCHS_IN_META_BATCH, NUM_EPOCHS // EPOCHS_IN_META_BATCH
+    ):
         print(
-            "generating new training set. iteration %s/%s" % (i + 1, NUM_META_BATCHES)
+            "generating new training set. iteration %s/%s"
+            % (i + 1, NUM_EPOCHS // EPOCHS_IN_META_BATCH)
         )
         random.shuffle(training_set)
         batch_training_set = (
@@ -151,7 +231,8 @@ if __name__ == "__main__":
         )
 
         print(
-            "generating new validation set. iteration %s/%s" % (i + 1, NUM_META_BATCHES)
+            "generating new validation set. iteration %s/%s"
+            % (i + 1, NUM_EPOCHS // EPOCHS_IN_META_BATCH)
         )
         random.shuffle(validation_set)
         validation_input, validation_output = create_corpus_arrays(
@@ -169,13 +250,10 @@ if __name__ == "__main__":
         model.fit(
             batch_training_input,
             batch_training_output,
-            epochs=(i + 1) *EPOCHS_IN_META_BATCH,
-            initial_epoch=i * EPOCHS_IN_META_BATCH,
+            epochs=min((i + 1) * EPOCHS_IN_META_BATCH, NUM_EPOCHS),
+            initial_epoch=max(i * EPOCHS_IN_META_BATCH, initial_epoch),
             validation_data=(validation_input, validation_output),
-            callbacks=[
-                checkpoint_callback,
-                tensorboard_callback
-            ],
+            callbacks=[checkpoint_callback, tensorboard_callback],
             use_multiprocessing=True,
         )
 
