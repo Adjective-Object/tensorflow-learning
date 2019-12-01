@@ -5,9 +5,29 @@ from get_data import get_corpus, lookup_map_from_set
 CARD_START_CHAR = "<"
 CARD_END_CHAR = ">"
 
+
+def fix_him_her_their(s):
+    return (""
+        .replace("him or her", "their")
+        .replace("her or him", "their")
+        .replace("his or hers", "their")
+        .replace("hers or his", "their")
+        .replace("his", "their")
+        .replace("hers", "their")
+        .replace("him", "their")
+        .replace("her", "their")
+    )
+
+
+def fix_aether(s):
+    return "".replace("Æ", "ae").replace("æ", "ae")
+
+
 def strip_accents(s):
-   return ''.join(c for c in unicodedata.normalize('NFD', s)
-                  if unicodedata.category(c) != 'Mn')
+    return "".join(
+        c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn"
+    )
+
 
 def remove_reminder_text(card_body):
     return re.sub(r"\([^)]*\)", "", card_body)
@@ -29,7 +49,11 @@ def generate_card_text(cards):
                 body_text,
             ]
         ).lower()
-        card_inner_text = strip_accents(card_inner_text).encode('ascii', errors='ignore').decode()
+        card_inner_text = (
+            fix_him_her_their(fix_aether(strip_accents(card_inner_text)))
+            .encode("ascii", errors="ignore")
+            .decode()
+        )
 
         if CARD_START_CHAR in card_inner_text:
             print("Encountered %s in card text" % CARD_START_CHAR, card_text)

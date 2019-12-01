@@ -2,6 +2,7 @@ import os
 import re
 import sys
 import json
+import math
 import random
 import numpy as np
 import tensorflow as tf
@@ -188,10 +189,10 @@ if __name__ == "__main__":
     print("cards in training set:", len(training_set))
     print("cards in validation set:", len(validation_set))
 
-    NUM_EPOCHS = 50
-    SEQUENCE_LENGTH = 60
-    EPOCHS_IN_META_BATCH = 5
-    MAX_TRAIN_BATCH_SIZE = 1000
+    NUM_EPOCHS = 100
+    SEQUENCE_LENGTH = 30
+    EPOCHS_IN_META_BATCH = 3
+    MAX_TRAIN_BATCH_SIZE = 500
     MAX_VALIDATION_BATCH_SIZE = 200
     VOCAB_SIZE = len(seen_characters)
 
@@ -217,7 +218,8 @@ if __name__ == "__main__":
         model = existing_model
 
     for i in range(
-        initial_epoch // EPOCHS_IN_META_BATCH, NUM_EPOCHS // EPOCHS_IN_META_BATCH
+        initial_epoch // EPOCHS_IN_META_BATCH,
+        int(math.ceil(NUM_EPOCHS * 1.0 / EPOCHS_IN_META_BATCH)),
     ):
         print(
             "generating new training set. iteration %s/%s"
