@@ -1,5 +1,5 @@
 import tensorflow as tf
-from pix2pix_constants import IMG_CROP_h, IMG_CROP_w, NETWORK_INOUT_H, NETWORK_INOUT_W
+from pix2pix_constants import IMG_CROP_h, IMG_CROP_w, NETWORK_INOUT_h, NETWORK_INOUT_w
 
 
 def resize(input_image, real_image, height, width):
@@ -16,7 +16,7 @@ def resize(input_image, real_image, height, width):
 def random_crop(input_image, real_image):
     stacked_image = tf.stack([input_image, real_image], axis=0)
     cropped_image = tf.image.random_crop(
-        stacked_image, size=[2, NETWORK_INOUT_H, NETWORK_INOUT_W, 3]
+        stacked_image, size=[2, NETWORK_INOUT_h, NETWORK_INOUT_w, 3]
     )
 
     return cropped_image[0], cropped_image[1]

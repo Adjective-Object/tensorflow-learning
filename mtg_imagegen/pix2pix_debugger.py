@@ -22,7 +22,9 @@ def save_debug_ouput_fig(suffix, model, test_input, tar):
     if not os.path.isdir(DEBUG_IMAGE_DIR):
         os.makedirs(DEBUG_IMAGE_DIR)
 
-    plt.savefig(os.path.join(DEBUG_IMAGE_DIR, "debug_" + suffix + ".png"))
+    out_path = os.path.join(DEBUG_IMAGE_DIR, "debug_" + suffix + ".png")
+    print("Saving to", out_path)
+    plt.savefig(out_path)
 
 
 def save_model_fig(model, out_path):

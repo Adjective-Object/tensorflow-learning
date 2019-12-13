@@ -39,8 +39,6 @@ def training_session(dir_suffix):
         with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
             gen_output = generator(input_image, training=True)
 
-            print(input_image, target)
-
             disc_real_output = discriminator([input_image, target], training=True)
             disc_generated_output = discriminator(
                 [input_image, gen_output], training=True
@@ -84,19 +82,19 @@ def training_session(dir_suffix):
                 save_debug_ouput_fig(
                     "epoch_%s" % epoch, generator, example_input, example_target
                 )
-            print("Epoch: ", epoch)
+            print("Epoch: ", epoch, "/", epochs)
 
             # Train
             for n, (input_image, target) in train_ds.enumerate():
                 print(".", end="")
                 if (n + 1) % 100 == 0:
-                    print()
+                    print(int(n + 1))
                 train_step(input_image, target, epoch)
             print()
 
             # saving (checkpoint) the model every 20 epochs
-            if (epoch + 1) % 20 == 0:
-                checkpoint.save(file_prefix=checkpoint_prefix)
+            # if (epoch + 1) % 20 == 0:
+            checkpoint.save(file_prefix=checkpoint_prefix)
 
             print(
                 "Time taken for epoch {} is {} sec\n".format(

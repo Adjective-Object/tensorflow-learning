@@ -152,6 +152,8 @@ def write_edge(in_path, out_path):
 def write_combined_edges_and_crop(crop_path, edge_path, out_path):
     try:
         crop_img = color.rgb2lab(imageio.imread(crop_path)[:, :, 0:3])
+        crop_img[:,:,1] = 0;
+        crop_img[:,:,2] = 0;
         edge_img = imageio.imread(edge_path)
 
         if crop_img.shape[0:2] != edge_img.shape[0:2]:

@@ -38,6 +38,8 @@ if __name__ == "__main__":
     training_out_path = args.training_out_path[0]
     test_out_path = args.test_out_path[0]
 
+    print(in_path, "->", "training", training_out_path, "test", test_out_path)
+
     if not os.path.isdir(training_out_path):
         os.makedirs(training_out_path)
 
@@ -48,8 +50,8 @@ if __name__ == "__main__":
     for i, f in enumerate(files):
         print("(%4s/%4s) %s)" % (i + 1, len(files), f))
         in_file_path = os.path.join(in_path, f)
-        out_test_path = os.path.join(training_out_path, f)
-        out_train_path = os.path.join(test_out_path, f)
+        out_train_path = os.path.join(training_out_path, f)
+        out_test_path = os.path.join(test_out_path, f)
 
         is_training = random.random() > RATIO
         if is_training:
