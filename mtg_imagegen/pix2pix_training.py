@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 import tensorflow as tf
 from pix2pix_generator_model import Generator
@@ -77,24 +78,35 @@ def training_session(dir_suffix):
         for epoch in range(epochs):
             start = time.time()
 
-            for example_input, example_target in test_ds.take(1):
-                print("saving debug fig for epoch %s" % epoch)
-                save_debug_ouput_fig(
-                    "epoch_%s" % epoch, generator, example_input, example_target
-                )
+            try:
+                for example_input, example_target in test_ds.take(1):
+                    print("saving debug fig for epoch %s" % epoch)
+                    save_debug_ouput_fig(
+                        "epoch_%s%s" % (epoch, suffix),
+                        generator,
+                        example_input,
+                        example_target,
+                    )
+            except KeyboardInterrupt:
+                exit(1)
+            except:
+                print("error generating debug fig. skipping")
+
             print("Epoch: ", epoch, "/", epochs)
 
             # Train
             for n, (input_image, target) in train_ds.enumerate():
                 print(".", end="")
+                sys.stdout.flush()
                 if (n + 1) % 100 == 0:
                     print(int(n + 1))
                 train_step(input_image, target, epoch)
+
             print()
 
             # saving (checkpoint) the model every 20 epochs
-            # if (epoch + 1) % 20 == 0:
-            checkpoint.save(file_prefix=checkpoint_prefix)
+            if (epoch + 1) % 20 == 0:
+                checkpoint.save(file_prefix=checkpoint_prefix)
 
             print(
                 "Time taken for epoch {} is {} sec\n".format(
