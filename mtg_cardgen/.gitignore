@@ -1,4 +1,11 @@
 data/*
 tensorboard_logs*
+text_tensorboard*
 *.log
-
+*.txt
+a.out
+*_training_checkpoints
+*.h5
+allCards_pretty.json
+log
+tex
