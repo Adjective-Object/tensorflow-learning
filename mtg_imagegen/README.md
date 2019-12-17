@@ -19,7 +19,7 @@ python ./segment_dataset.py ./data/l_to_color/C ./train_data/grayscale_2_color/C
 python ./segment_dataset.py ./data/l_to_color/G ./train_data/grayscale_2_color/G ./test_data/grayscale_2_color/G
 python ./segment_dataset.py ./data/l_to_color/R ./train_data/grayscale_2_color/R ./test_data/grayscale_2_color/R
 python ./segment_dataset.py ./data/l_to_color/U ./train_data/grayscale_2_color/U ./test_data/grayscale_2_color/U
-python ./segment_dataset.py ./data/l_to_color/W ./train_data/grayscale_2_color/W ./test_data/edges_2_color/W
+python ./segment_dataset.py ./data/l_to_color/W ./train_data/grayscale_2_color/W ./test_data/grayscale_2_color/W
 
 #train
 python ./train_edges_2_lab.py
