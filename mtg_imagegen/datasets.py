@@ -14,10 +14,10 @@ def normalize(input_image, real_image):
 # loads an input/output pair from a single file
 # (input on left, output on right)
 def load_in_out_pair_image(image_file):
-    tf.print(image_file)
+    # tf.print(image_file)
     image = tf.io.read_file(image_file)
     image = tf.image.decode_png(image)
-    tf.print(image_file, "loaded successfully", tf.shape(image))
+    # tf.print(image_file, "loaded successfully", tf.shape(image))
 
     w = tf.shape(image)[1]
 
@@ -53,7 +53,7 @@ def get_dataset(ds_glob):
 
 
 def get_edges_train_dataset():
-    return get_dataset("./test_data/edges_2_l/*.png")
+    return get_dataset("./train_data/edges_2_l/*.png")
 
 
 def get_edges_test_dataset():
@@ -61,7 +61,7 @@ def get_edges_test_dataset():
 
 
 def get_edges_l_hint_train_dataset():
-    return get_dataset("./test_data/edges_l_hint_2_l/*.png")
+    return get_dataset("./train_data/edges_l_hint_2_l/*.png")
 
 
 def get_edges_l_hint_test_dataset():
@@ -69,7 +69,7 @@ def get_edges_l_hint_test_dataset():
 
 
 def get_colorize_b_train_dataset():
-    return get_dataset("./test_data/grayscale_2_color/B/*.png")
+    return get_dataset("./train_data/grayscale_2_color/B/*.png")
 
 
 def get_colorize_b_test_dataset():
@@ -77,7 +77,7 @@ def get_colorize_b_test_dataset():
 
 
 def get_colorize_c_train_dataset():
-    return get_dataset("./test_data/grayscale_2_color/C/*.png")
+    return get_dataset("./train_data/grayscale_2_color/C/*.png")
 
 
 def get_colorize_c_test_dataset():
@@ -85,7 +85,7 @@ def get_colorize_c_test_dataset():
 
 
 def get_colorize_g_train_dataset():
-    return get_dataset("./test_data/grayscale_2_color/G/*.png")
+    return get_dataset("./train_data/grayscale_2_color/G/*.png")
 
 
 def get_colorize_g_test_dataset():
@@ -93,7 +93,7 @@ def get_colorize_g_test_dataset():
 
 
 def get_colorize_r_train_dataset():
-    return get_dataset("./test_data/grayscale_2_color/R/*.png")
+    return get_dataset("./train_data/grayscale_2_color/R/*.png")
 
 
 def get_colorize_r_test_dataset():
@@ -101,7 +101,7 @@ def get_colorize_r_test_dataset():
 
 
 def get_colorize_u_train_dataset():
-    return get_dataset("./test_data/grayscale_2_color/U/*.png")
+    return get_dataset("./train_data/grayscale_2_color/U/*.png")
 
 
 def get_colorize_u_test_dataset():
@@ -109,7 +109,7 @@ def get_colorize_u_test_dataset():
 
 
 def get_colorize_w_train_dataset():
-    return get_dataset("./test_data/grayscale_2_color/W/*.png")
+    return get_dataset("./train_data/grayscale_2_color/W/*.png")
 
 
 def get_colorize_w_test_dataset():

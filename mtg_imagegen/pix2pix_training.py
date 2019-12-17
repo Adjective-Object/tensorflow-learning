@@ -70,6 +70,8 @@ def training_session(dir_suffix):
             tf.summary.scalar("gen_l1_loss", gen_l1_loss, step=epoch)
             tf.summary.scalar("disc_loss", disc_loss, step=epoch)
 
+        return [gen_total_loss, gen_gan_loss, gen_l1_loss, disc_loss]
+
     def fit(train_ds, epochs, test_ds):
 
         save_model_fig(generator, "generator.png")
@@ -82,7 +84,7 @@ def training_session(dir_suffix):
                 for example_input, example_target in test_ds.take(1):
                     print("saving debug fig for epoch %s" % epoch)
                     save_debug_ouput_fig(
-                        "epoch_%s%s" % (epoch, suffix),
+                        "epoch_%s%s" % (epoch, dir_suffix),
                         generator,
                         example_input,
                         example_target,
@@ -90,22 +92,50 @@ def training_session(dir_suffix):
             except KeyboardInterrupt:
                 exit(1)
             except:
-                print("error generating debug fig. skipping")
+                print("error generating debug fig. skipping", sys.exc_info())
 
             print("Epoch: ", epoch, "/", epochs)
 
             # Train
+            aggregate_results = [0, 0, 0, 0]
+            num_samples = 0
             for n, (input_image, target) in train_ds.enumerate():
                 print(".", end="")
                 sys.stdout.flush()
                 if (n + 1) % 100 == 0:
                     print(int(n + 1))
-                train_step(input_image, target, epoch)
+
+                stats = train_step(input_image, target, epoch)
+                for i, x in enumerate(stats):
+                    aggregate_results[i] = aggregate_results[i] + x
+                num_samples += 1
+
+            with summary_writer.as_default():
+                tf.summary.scalar(
+                    "gen_total_loss_epoch_avg",
+                    aggregate_results[0] / num_samples,
+                    step=epoch,
+                )
+                tf.summary.scalar(
+                    "gen_gan_loss_epoch_avg",
+                    aggregate_results[1] / num_samples,
+                    step=epoch,
+                )
+                tf.summary.scalar(
+                    "gen_l1_loss_epoch_avg",
+                    aggregate_results[2] / num_samples,
+                    step=epoch,
+                )
+                tf.summary.scalar(
+                    "disc_loss_epoch_avg",
+                    aggregate_results[3] / num_samples,
+                    step=epoch,
+                )
 
             print()
 
             # saving (checkpoint) the model every 20 epochs
-            if (epoch + 1) % 20 == 0:
+            if (epoch + 1) % 5 == 0:
                 checkpoint.save(file_prefix=checkpoint_prefix)
 
             print(

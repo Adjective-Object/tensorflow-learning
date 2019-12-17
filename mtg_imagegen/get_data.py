@@ -105,6 +105,7 @@ def crop_card_art(in_path, out_path):
 
 def write_edge(in_path, out_path, include_light_hint=False):
     try:
+        print("write_edge reading", in_path)
         image = color.rgb2lab(imageio.imread(in_path)[:, :, 0:3])
 
         # blurring to denoise edges from dot printing
@@ -180,7 +181,10 @@ def write_combined_inputs_and_crop(
     except KeyboardInterrupt:
         sys.exit(1)
     except:
-        print("error in combining images:", sys.exc_info()[1])
+        print(
+            "error in combining images %s and %s:" % (crop_path, input_path),
+            sys.exc_info()[1],
+        )
 
 
 def write_grayscale_combined_img(input_path, out_path, grayscale_output=True):
@@ -196,7 +200,10 @@ def write_grayscale_combined_img(input_path, out_path, grayscale_output=True):
     except KeyboardInterrupt:
         sys.exit(1)
     except:
-        print("error in combining images:", sys.exc_info()[1])
+        print(
+            "error in writing grayscale combined images for %s:" % input_path,
+            sys.exc_info()[1],
+        )
 
 
 def crop_and_edge_detect(card):
@@ -216,11 +223,17 @@ def crop_and_edge_detect(card):
         crop_card_art(img_path, out_crop_path)
 
     if not os.path.exists(out_edge_l_hint_path):
-        print("  edge detect %s to %s" % (card_name, out_edge_l_hint_path))
+        print(
+            "  edge detect with hint %s to %s -> %s"
+            % (card_name, out_crop_path, out_edge_l_hint_path)
+        )
         write_edge(out_crop_path, out_edge_l_hint_path, include_light_hint=True)
 
     if not os.path.exists(out_edge_path):
-        print("  edge detect %s to %s" % (card_name, out_edge_path))
+        print(
+            '  edge detect %s to "%s" -> "%s"'
+            % (card_name, out_crop_path, out_edge_path)
+        )
         write_edge(out_crop_path, out_edge_path, include_light_hint=False)
 
     if not os.path.exists(out_edge_and_crop_path):
@@ -300,4 +313,7 @@ if __name__ == "__main__":
         new_thread = threading.Thread(target=crop_and_edge_detect, args=(card,))
         new_thread.start()
         open_threads.append(new_thread)
+
+    for thread in open_threads:
+        thread.join()
 

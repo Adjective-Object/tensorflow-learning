@@ -25,6 +25,7 @@ def save_debug_ouput_fig(suffix, model, test_input, tar):
     out_path = os.path.join(DEBUG_IMAGE_DIR, "debug_" + suffix + ".png")
     print("Saving to", out_path)
     plt.savefig(out_path)
+    plt.close()
 
 
 def save_model_fig(model, out_path):

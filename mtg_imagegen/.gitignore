@@ -6,3 +6,5 @@ test_data/
 tensorboard_logs*
 *.log
 *.png
+log
+training_checkpoints_*
