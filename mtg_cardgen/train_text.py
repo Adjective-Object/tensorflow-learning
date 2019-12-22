@@ -13,11 +13,12 @@ from text_model import build_model
 
 def encode_names(card_strings, lookup_map):
     encoded_card_strings = []
+    biggest_val = max(lookup_map.values())
     for card in card_strings:
         encoded_card = np.zeros((len(card),))
         for [i, char] in enumerate(card):
             # print(lookup_map, char, lookup_map[char], encoded_card)
-            encoded_card[i] = lookup_map[char]
+            encoded_card[i] = lookup_map[char] / biggest_val
 
         encoded_card_strings.append(encoded_card)
 
