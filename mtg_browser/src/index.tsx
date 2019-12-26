@@ -75,6 +75,7 @@ function selectFromProbabilities(
     }
     case "confidence_exponent": {
       const minScore = Math.min(...Array.from(scores));
+      console.log(scores);
       const adjustedScores = scores.map((score: number): number =>
         Math.pow(score - minScore, selectionMethod.confidence_exponent)
       );
@@ -182,10 +183,11 @@ class TextGenerationModel {
       throw new Error("Expected a sinlge output tensor, got array");
     }
 
-    return selectFromProbabilities(
-      modelOutputTensor.dataSync<"float32">(),
-      selectionMethod
-    );
+    const output = modelOutputTensor.dataSync<"float32">();
+
+    console.log("PREDICTION:", output);
+
+    return selectFromProbabilities(output, selectionMethod);
   }
 
   public continueSequence(
@@ -199,9 +201,12 @@ class TextGenerationModel {
       this.vocab,
       this.modelInputSize
     );
-    let inputSequence = Array.from(sanatizedSeedSequence).map(
-      c => this.config.seen_characters[c] / this.vocab.length
-    );
+    let inputSequence = Array.from(sanatizedSeedSequence).map(c => {
+      if (this.config.seen_characters[c] === undefined) {
+        throw new Error(`${c} not in the seen_characters map  `);
+      }
+      return this.config.seen_characters[c] / this.vocab.length;
+    });
 
     for (let i = 0; ; i++) {
       const nextOutput = this.getNextInSequence(inputSequence, selectionMethod);
@@ -240,11 +245,13 @@ async function main() {
     "/trained_text_config.json"
   );
 
-  const inString = "<Jace";
+  const inString =
+    "<1abandon reason;2{^^R};3instant;4&;5&;6&;7up to two target creatures each get +1/+0 and gain first strike until end of turn.\nmadness {^R} >";
 
   const completedSequence = model.continueSequence(
     inString,
-    { type: "take_best" },
+    // { type: "" },
+    { type: "confidence_exponent", confidence_exponent: 10 },
     (c, i) => c === ">" || i > 120
   );
 

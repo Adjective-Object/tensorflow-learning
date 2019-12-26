@@ -2,7 +2,7 @@ import tensorflow as tf
 from model import lstm_chain
 
 
-def build_model(sequence_length, num_char_classes):
+def build_model(sequence_length, num_char_classes, N_LAYERS=4, LAYER_SIZE=1024):
 
     text_input = tf.keras.Input(shape=(sequence_length,), name="text_input")
 
@@ -10,10 +10,10 @@ def build_model(sequence_length, num_char_classes):
         lstm_chain(
             "next_char_predictor_lstm",  # name
             [text_input],
-            n_layers=5,
-            layer_size=512,
+            n_layers=N_LAYERS,
+            layer_size=LAYER_SIZE,
             output_layer_size=num_char_classes,
-            per_layer_dropout=0.2,
+            per_layer_dropout=0.1,
             activation="softmax",
         ),
     )
