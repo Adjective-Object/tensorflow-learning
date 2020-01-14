@@ -6,6 +6,9 @@ import { ErrorResponse } from "../worker/types/messages/ErrorResponse";
 import { TextCompletionResponse } from "../worker/types/messages/TextCompletionRespose";
 import debounce from "lodash/debounce";
 import { VocabLimits } from "../model/types/VocabLimits";
+import { sanatizeManaCost } from "../field-sanatizers/sanatizeManaCost";
+import { sanatizeTypeLine } from "../field-sanatizers/sanatizeTypeLine";
+import { sanatizeNumericField } from "../field-sanatizers/sanatizeNumericField";
 
 const usePredictedValue = (
   predictionPrefix: string,
@@ -19,8 +22,11 @@ const usePredictedValue = (
   );
   const predictionResponse = predictionRequest.read();
 
+  // HACK force a rerender, since idk how hooks can alert on subscription
+  const [, setForceRerender] = React.useState();
   const refreshPrediction = React.useCallback(() => {
     predictionRequest.refresh();
+    setForceRerender({});
   }, [predictionRequest]);
 
   return [predictionResponse, refreshPrediction];
@@ -47,13 +53,13 @@ interface FieldRendererProps {
 const FieldPrediction = React.memo(
   ({
     prefix,
-    setCurrentValue,
+    onCommit,
     maxLength,
     selectionMethod,
     FieldContent
   }: {
     prefix: string;
-    setCurrentValue: (newVal: string) => void;
+    onCommit: (newVal: string) => void;
     maxLength: number;
     selectionMethod: SelectionMethod;
     FieldContent: React.ComponentType<FieldRendererProps>;
@@ -66,14 +72,14 @@ const FieldPrediction = React.memo(
 
     const commitValue = React.useCallback(() => {
       if (predictionResponse.type === "TEXT_COMPLETION_RESPONSE") {
-        setCurrentValue(predictionResponse.completedString);
+        onCommit(predictionResponse.completedString);
       } else {
         throw new Error(
           "Tried to complete with error response:" +
             predictionResponse.errorMessage
         );
       }
-    }, [setCurrentValue, predictionResponse]);
+    }, [onCommit, predictionResponse]);
 
     if (predictionResponse.type === "ERROR_RESPONSE") {
       return (
@@ -125,7 +131,7 @@ const FieldWithPrediction = React.memo(
     vocabLimits?: VocabLimits;
   }) => {
     const [selectionMethod] = React.useState<SelectionMethod>({
-      type: "take_best"
+      type: "take_with_probability"
     });
     const selectionMethodWithLimitedVocab = React.useMemo(() => {
       return {
@@ -137,7 +143,7 @@ const FieldWithPrediction = React.memo(
     const [displayValue, setDisplayValue] = React.useState(currentValue);
 
     const debouncedSetCurrentValue = React.useMemo(
-      () => debounce(onSetCurrentValue, 100),
+      () => debounce(onSetCurrentValue, 400),
       [onSetCurrentValue]
     );
 
@@ -149,13 +155,26 @@ const FieldWithPrediction = React.memo(
       [setDisplayValue, debouncedSetCurrentValue]
     );
 
+    const onCommit = React.useCallback(
+      (v: string) => {
+        const nextValue = displayValue + v;
+        onSetCurrentValue(nextValue);
+      },
+      [displayValue, onSetCurrentValue]
+    );
+
+    // When currentValue is updated directly, make sure displayValue matches it
+    React.useEffect(() => {
+      setDisplayValue(currentValue);
+    }, [currentValue]);
+
     return (
       <div className="card-field-value-container">
         <FieldContent onUpdateText={setValue} text={displayValue} />
         <React.Suspense fallback={<span>...</span>}>
           <FieldPrediction
             prefix={prefix + currentValue}
-            setCurrentValue={onSetCurrentValue}
+            onCommit={onCommit}
             selectionMethod={selectionMethodWithLimitedVocab}
             maxLength={maxLength}
             FieldContent={FieldContent}
@@ -188,19 +207,56 @@ const SimpleTextFieldRenderer = ({
 const oneLineTextVocabLimits: VocabLimits = {
   allowTokenizedWords: false,
   allowNewlines: false,
-  allowManaAndNumbersMarkup: false
+  allowManaAndNumbersMarkup: false,
+  allowAlphabetic: true,
+  allowNumeric: false,
+  allowNormalPuncutaion: false
 };
 
-const manaVocabLimits: VocabLimits = {
+const manaOrPowerTouchnessVocabLimits: VocabLimits = {
   allowTokenizedWords: false,
   allowNewlines: false,
-  allowManaAndNumbersMarkup: true
+  allowManaAndNumbersMarkup: true,
+  allowAlphabetic: false,
+  allowNumeric: false,
+  allowNormalPuncutaion: false
+};
+
+const noVocabLimits: VocabLimits = {
+  allowTokenizedWords: true,
+  allowNewlines: true,
+  allowManaAndNumbersMarkup: true,
+  allowAlphabetic: true,
+  allowNumeric: true,
+  allowNormalPuncutaion: true
+};
+
+const useSanatizedField = (
+  initialValue: string,
+  sanatizer: (v: string) => string
+): [string, (v: string) => void] => {
+  const [fieldVal, setFieldVal] = React.useState(initialValue);
+  const sanatizedSetCallback = React.useCallback(
+    (v: string) => {
+      setFieldVal(sanatizer(v));
+    },
+    [sanatizer, setFieldVal]
+  );
+
+  return [fieldVal, sanatizedSetCallback];
 };
 
 export const Card = React.memo(() => {
-  const [displayName, setDisplayName] = React.useState("heliod");
-  const [manaCost, setManaCost] = React.useState("");
-  const [typeLine, setTypeLine] = React.useState("");
+  const [displayName, setDisplayName] = React.useState("abandon reason");
+  const [manaCost, setManaCost] = useSanatizedField("^^R", sanatizeManaCost);
+  const [typeLine, setTypeLine] = useSanatizedField(
+    "creature",
+    sanatizeTypeLine
+  );
+  const [power, setPower] = useSanatizedField("", sanatizeNumericField);
+  const [toughness, setToughness] = useSanatizedField("", sanatizeNumericField);
+  const [loyalty, setLoyalty] = useSanatizedField("", sanatizeNumericField);
+  const [body, setBody] = React.useState("");
 
   return (
     <section className="card-container">
@@ -213,19 +269,89 @@ export const Card = React.memo(() => {
         FieldContent={SimpleTextFieldRenderer}
       />
       <FieldWithPrediction
-        prefix={"<1" + displayName + ";2"}
-        vocabLimits={manaVocabLimits}
+        prefix={"<1" + displayName + ";2{"}
+        vocabLimits={manaOrPowerTouchnessVocabLimits}
         currentValue={manaCost}
         onSetCurrentValue={setManaCost}
         maxLength={15}
         FieldContent={SimpleTextFieldRenderer}
       />
       <FieldWithPrediction
-        prefix={"<1" + displayName + ";2" + manaCost + ";3"}
+        prefix={"<1" + displayName + ";2{" + manaCost + ";3"}
         vocabLimits={oneLineTextVocabLimits}
         currentValue={typeLine}
         onSetCurrentValue={setTypeLine}
+        maxLength={40}
+        FieldContent={SimpleTextFieldRenderer}
+      />
+      <FieldWithPrediction
+        prefix={
+          "<1" + displayName + ";2{" + manaCost + "};3" + typeLine + ";4&"
+        }
+        vocabLimits={manaOrPowerTouchnessVocabLimits}
+        currentValue={power}
+        onSetCurrentValue={setPower}
         maxLength={15}
+        FieldContent={SimpleTextFieldRenderer}
+      />
+      <FieldWithPrediction
+        prefix={
+          "<1" +
+          displayName +
+          ";2{" +
+          manaCost +
+          "};3" +
+          typeLine +
+          ";4&" +
+          power +
+          ";5&"
+        }
+        vocabLimits={manaOrPowerTouchnessVocabLimits}
+        currentValue={toughness}
+        onSetCurrentValue={setToughness}
+        maxLength={15}
+        FieldContent={SimpleTextFieldRenderer}
+      />
+      <FieldWithPrediction
+        prefix={
+          "<1" +
+          displayName +
+          ";2{" +
+          manaCost +
+          "};3" +
+          typeLine +
+          ";4&" +
+          power +
+          ";5&" +
+          toughness +
+          ";6&"
+        }
+        vocabLimits={manaOrPowerTouchnessVocabLimits}
+        currentValue={loyalty}
+        onSetCurrentValue={setLoyalty}
+        maxLength={15}
+        FieldContent={SimpleTextFieldRenderer}
+      />
+      <FieldWithPrediction
+        prefix={
+          "<1" +
+          displayName +
+          ";2{" +
+          manaCost +
+          "};3" +
+          typeLine +
+          ";4&" +
+          power +
+          ";5&" +
+          toughness +
+          ";6&" +
+          loyalty +
+          ";7"
+        }
+        vocabLimits={noVocabLimits}
+        currentValue={body}
+        onSetCurrentValue={setBody}
+        maxLength={80}
         FieldContent={SimpleTextFieldRenderer}
       />
     </section>

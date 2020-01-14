@@ -13,7 +13,6 @@ export type SelectionMethod = SelectionMethodCommon &
         type: "take_best";
       }
     | {
-        type: "confidence_exponent";
-        confidence_exponent: number;
+        type: "take_with_probability";
       }
   );

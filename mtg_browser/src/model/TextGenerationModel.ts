@@ -59,18 +59,36 @@ export class TextGenerationModel {
     if (selectionMethod.vocabLimits) {
       if (!selectionMethod.vocabLimits.allowNewlines) {
         const newlineIdx = this.config.seen_characters["\n"];
-        output[newlineIdx] = -Infinity;
+        output[newlineIdx] = 0;
       }
       if (!selectionMethod.vocabLimits.allowTokenizedWords) {
         for (let token in this.tokensToStrings) {
           const tokenIdx = this.config.seen_characters[token];
-          output[tokenIdx] = -Infinity;
+          output[tokenIdx] = 0;
         }
       }
       if (!selectionMethod.vocabLimits.allowManaAndNumbersMarkup) {
         for (let token of "{&WUBRGCX*}") {
           const tokenIdx = this.config.seen_characters[token];
-          output[tokenIdx] = -Infinity;
+          output[tokenIdx] = 0;
+        }
+      }
+      if (!selectionMethod.vocabLimits.allowAlphabetic) {
+        for (let token of "abcdefghijklmnopqrstuvwxyz") {
+          const tokenIdx = this.config.seen_characters[token];
+          output[tokenIdx] = 0;
+        }
+      }
+      if (!selectionMethod.vocabLimits.allowNumeric) {
+        for (let token of "1234567890") {
+          const tokenIdx = this.config.seen_characters[token];
+          output[tokenIdx] = 0;
+        }
+      }
+      if (!selectionMethod.vocabLimits.allowNormalPuncutaion) {
+        for (let token of ".+-,") {
+          const tokenIdx = this.config.seen_characters[token];
+          output[tokenIdx] = 0;
         }
       }
     }
@@ -109,8 +127,6 @@ export class TextGenerationModel {
     for (let i = 0; ; i++) {
       const nextOutput = this.getNextInSequence(inputSequence, selectionMethod);
       const nextOutputChar = this.characterReverseLookup[nextOutput];
-
-      console.log("inputSequence:", inputSequence);
 
       characters.push(nextOutputChar);
       if (shouldFinishSequence(nextOutputChar, i)) {
