@@ -55,7 +55,25 @@ export class TextGenerationModel {
 
     const output = modelOutputTensor.dataSync<"float32">();
 
-    console.log("PREDICTION:", output);
+    // delete illegal characters from output
+    if (selectionMethod.vocabLimits) {
+      if (!selectionMethod.vocabLimits.allowNewlines) {
+        const newlineIdx = this.config.seen_characters["\n"];
+        output[newlineIdx] = -Infinity;
+      }
+      if (!selectionMethod.vocabLimits.allowTokenizedWords) {
+        for (let token in this.tokensToStrings) {
+          const tokenIdx = this.config.seen_characters[token];
+          output[tokenIdx] = -Infinity;
+        }
+      }
+      if (!selectionMethod.vocabLimits.allowManaAndNumbersMarkup) {
+        for (let token of "{&WUBRGCX*}") {
+          const tokenIdx = this.config.seen_characters[token];
+          output[tokenIdx] = -Infinity;
+        }
+      }
+    }
 
     return selectFromProbabilities(output, selectionMethod);
   }

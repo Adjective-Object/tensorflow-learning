@@ -5,6 +5,7 @@ import { SelectionMethod } from "../model/types/SelectionMethod";
 import { ErrorResponse } from "../worker/types/messages/ErrorResponse";
 import { TextCompletionResponse } from "../worker/types/messages/TextCompletionRespose";
 import debounce from "lodash/debounce";
+import { VocabLimits } from "../model/types/VocabLimits";
 
 const usePredictedValue = (
   predictionPrefix: string,
@@ -83,18 +84,24 @@ const FieldPrediction = React.memo(
           <button
             className="card-field-value-refresh"
             onClick={refreshPrediction}
-          />
+          >
+            refresh
+          </button>
         </>
       );
     } else {
       return (
         <>
           <FieldContent text={predictionResponse.completedString} />
-          <button className="card-field-value-commit" onClick={commitValue} />
+          <button className="card-field-value-commit" onClick={commitValue}>
+            commit
+          </button>
           <button
             className="card-field-value-refresh"
             onClick={refreshPrediction}
-          />
+          >
+            refresh
+          </button>
         </>
       );
     }
@@ -104,25 +111,34 @@ const FieldPrediction = React.memo(
 const FieldWithPrediction = React.memo(
   ({
     prefix,
-    initialFieldValue,
+    currentValue,
+    onSetCurrentValue,
     maxLength,
+    vocabLimits,
     FieldContent
   }: {
     prefix: string;
-    initialFieldValue: string;
+    currentValue: string;
+    onSetCurrentValue: (v: string) => void;
     maxLength: number;
     FieldContent: React.ComponentType<FieldRendererProps>;
+    vocabLimits?: VocabLimits;
   }) => {
     const [selectionMethod] = React.useState<SelectionMethod>({
       type: "take_best"
     });
+    const selectionMethodWithLimitedVocab = React.useMemo(() => {
+      return {
+        ...selectionMethod,
+        vocabLimits
+      };
+    }, [selectionMethod, vocabLimits]);
 
-    const [currentValue, setCurrentValue] = React.useState(initialFieldValue);
-    const [displayValue, setDisplayValue] = React.useState(initialFieldValue);
+    const [displayValue, setDisplayValue] = React.useState(currentValue);
 
     const debouncedSetCurrentValue = React.useMemo(
-      () => debounce(setCurrentValue, 100),
-      [setCurrentValue]
+      () => debounce(onSetCurrentValue, 100),
+      [onSetCurrentValue]
     );
 
     const setValue = React.useCallback(
@@ -139,8 +155,8 @@ const FieldWithPrediction = React.memo(
         <React.Suspense fallback={<span>...</span>}>
           <FieldPrediction
             prefix={prefix + currentValue}
-            setCurrentValue={setCurrentValue}
-            selectionMethod={selectionMethod}
+            setCurrentValue={onSetCurrentValue}
+            selectionMethod={selectionMethodWithLimitedVocab}
             maxLength={maxLength}
             FieldContent={FieldContent}
           />
@@ -149,6 +165,8 @@ const FieldWithPrediction = React.memo(
     );
   }
 );
+
+FieldWithPrediction.displayName = "FieldWithPrediction";
 
 const SimpleTextFieldRenderer = ({
   onUpdateText,
@@ -167,17 +185,51 @@ const SimpleTextFieldRenderer = ({
   );
 };
 
+const oneLineTextVocabLimits: VocabLimits = {
+  allowTokenizedWords: false,
+  allowNewlines: false,
+  allowManaAndNumbersMarkup: false
+};
+
+const manaVocabLimits: VocabLimits = {
+  allowTokenizedWords: false,
+  allowNewlines: false,
+  allowManaAndNumbersMarkup: true
+};
+
 export const Card = React.memo(() => {
+  const [displayName, setDisplayName] = React.useState("heliod");
+  const [manaCost, setManaCost] = React.useState("");
+  const [typeLine, setTypeLine] = React.useState("");
+
   return (
     <section className="card-container">
-      <React.Suspense fallback={<div>...</div>}>
-        <FieldWithPrediction
-          prefix=""
-          initialFieldValue="<1heliod"
-          maxLength={15}
-          FieldContent={SimpleTextFieldRenderer}
-        />
-      </React.Suspense>
+      <FieldWithPrediction
+        prefix="<1"
+        vocabLimits={oneLineTextVocabLimits}
+        currentValue={displayName}
+        onSetCurrentValue={setDisplayName}
+        maxLength={15}
+        FieldContent={SimpleTextFieldRenderer}
+      />
+      <FieldWithPrediction
+        prefix={"<1" + displayName + ";2"}
+        vocabLimits={manaVocabLimits}
+        currentValue={manaCost}
+        onSetCurrentValue={setManaCost}
+        maxLength={15}
+        FieldContent={SimpleTextFieldRenderer}
+      />
+      <FieldWithPrediction
+        prefix={"<1" + displayName + ";2" + manaCost + ";3"}
+        vocabLimits={oneLineTextVocabLimits}
+        currentValue={typeLine}
+        onSetCurrentValue={setTypeLine}
+        maxLength={15}
+        FieldContent={SimpleTextFieldRenderer}
+      />
     </section>
   );
 });
+
+Card.displayName = "Card";
