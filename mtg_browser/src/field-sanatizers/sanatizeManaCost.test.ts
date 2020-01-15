@@ -8,7 +8,7 @@ describe("sanatizeManaCost", () => {
     expect(sanatizeManaCost("{^^B}")).toBe("^^B");
   });
   it("sorts basic mana symbols", () => {
-    expect(sanatizeManaCost("{G^BR^^UXW}")).toBe("X^^^WUBRG");
+    expect(sanatizeManaCost("{G^BCR^^UXW}")).toBe("X^^^CWUBRG");
   });
   it("sorts phyrexian mana symbols", () => {
     expect(sanatizeManaCost("{G/P^B/PR/P^^U/PXW/P}")).toBe(

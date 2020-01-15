@@ -1,7 +1,7 @@
 const manaPipCharacters = new Set("WUBRG");
 const legalCharacters = new Set("WUBRGXP^");
 
-const sortOrder = ["X", "^", "W", "U", "B", "R", "G"];
+const sortOrder = ["X", "^", "C", "W", "U", "B", "R", "G"];
 
 const comparator = (a: string, b: string) => {
   if (

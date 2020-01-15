@@ -20,7 +20,8 @@ const globalWorkerModelContext: WorkerModelContext = {
     (): Promise<TextGenerationModel> => {
       return TextGenerationModel.load(
         "/models/trained_text/model.json",
-        "/trained_text_config.json"
+        "/trained_text_config.json",
+        "/word_transitions.json"
       );
     }
   )

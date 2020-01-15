@@ -5,4 +5,5 @@ export interface VocabLimits {
   allowAlphabetic: boolean;
   allowNumeric: boolean;
   allowNormalPuncutaion: boolean;
+  limitTransitions: boolean;
 }

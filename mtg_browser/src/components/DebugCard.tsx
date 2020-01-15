@@ -210,7 +210,8 @@ const oneLineTextVocabLimits: VocabLimits = {
   allowManaAndNumbersMarkup: false,
   allowAlphabetic: true,
   allowNumeric: false,
-  allowNormalPuncutaion: false
+  allowNormalPuncutaion: false,
+  limitTransitions: false
 };
 
 const manaOrPowerTouchnessVocabLimits: VocabLimits = {
@@ -219,16 +220,18 @@ const manaOrPowerTouchnessVocabLimits: VocabLimits = {
   allowManaAndNumbersMarkup: true,
   allowAlphabetic: false,
   allowNumeric: false,
-  allowNormalPuncutaion: false
+  allowNormalPuncutaion: false,
+  limitTransitions: false
 };
 
-const noVocabLimits: VocabLimits = {
+const bodyTextLimits: VocabLimits = {
   allowTokenizedWords: true,
   allowNewlines: true,
   allowManaAndNumbersMarkup: true,
   allowAlphabetic: true,
   allowNumeric: true,
-  allowNormalPuncutaion: true
+  allowNormalPuncutaion: true,
+  limitTransitions: true
 };
 
 const useSanatizedField = (
@@ -348,7 +351,7 @@ export const Card = React.memo(() => {
           loyalty +
           ";7"
         }
-        vocabLimits={noVocabLimits}
+        vocabLimits={bodyTextLimits}
         currentValue={body}
         onSetCurrentValue={setBody}
         maxLength={80}

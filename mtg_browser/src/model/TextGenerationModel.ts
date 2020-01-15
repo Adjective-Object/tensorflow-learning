@@ -7,6 +7,9 @@ import { getModelInputSize } from "./getModelInputSize";
 import { getReverseLookupMap } from "./getReverseLookupMap";
 import { selectFromProbabilities } from "./selectFromProbabilities";
 import { trimOrPadSeedSequence } from "./trimOrPadSeedSequence";
+import { VocabLimits } from "./types/VocabLimits";
+import { getNextLegalCharactersFromWord } from "./legal-next-words/getNextLegalCharactersFromWord";
+import { getNextLegalCharactersFromWordTransitions } from "./getNextLegalCharactersFromWordTransitions";
 
 /**
  * Loads and runs the text generation model
@@ -20,7 +23,8 @@ export class TextGenerationModel {
 
   private constructor(
     private readonly model: tf.LayersModel,
-    private readonly config: TrainedTextConfig
+    private readonly config: TrainedTextConfig,
+    private readonly legalWordTransitions: Record<string, string[]>
   ) {
     this.modelInputSize = getModelInputSize(model);
     this.characterReverseLookup = getReverseLookupMap(config.seen_characters);
@@ -55,45 +59,94 @@ export class TextGenerationModel {
 
     const output = modelOutputTensor.dataSync<"float32">();
 
-    // delete illegal characters from output
     if (selectionMethod.vocabLimits) {
-      if (!selectionMethod.vocabLimits.allowNewlines) {
-        const newlineIdx = this.config.seen_characters["\n"];
-        output[newlineIdx] = 0;
-      }
-      if (!selectionMethod.vocabLimits.allowTokenizedWords) {
-        for (let token in this.tokensToStrings) {
-          const tokenIdx = this.config.seen_characters[token];
-          output[tokenIdx] = 0;
-        }
-      }
-      if (!selectionMethod.vocabLimits.allowManaAndNumbersMarkup) {
-        for (let token of "{&WUBRGCX*}") {
-          const tokenIdx = this.config.seen_characters[token];
-          output[tokenIdx] = 0;
-        }
-      }
-      if (!selectionMethod.vocabLimits.allowAlphabetic) {
-        for (let token of "abcdefghijklmnopqrstuvwxyz") {
-          const tokenIdx = this.config.seen_characters[token];
-          output[tokenIdx] = 0;
-        }
-      }
-      if (!selectionMethod.vocabLimits.allowNumeric) {
-        for (let token of "1234567890") {
-          const tokenIdx = this.config.seen_characters[token];
-          output[tokenIdx] = 0;
-        }
-      }
-      if (!selectionMethod.vocabLimits.allowNormalPuncutaion) {
-        for (let token of ".+-,") {
-          const tokenIdx = this.config.seen_characters[token];
-          output[tokenIdx] = 0;
-        }
-      }
+      this.limitLegalCharacterOutput(
+        inputSequence,
+        output,
+        selectionMethod.vocabLimits
+      );
     }
 
     return selectFromProbabilities(output, selectionMethod);
+  }
+
+  /***
+   * Mutates the passed in output array, setting illegal options to 0.
+   */
+  private limitLegalCharacterOutput(
+    inputSequence: number[],
+    output: Float32Array,
+    vocabLimits: VocabLimits
+  ) {
+    if (vocabLimits.limitTransitions) {
+      this.limitCharacterByLegalWordTransitions(inputSequence, output);
+    }
+
+    // delete illegal characters from output
+    if (!vocabLimits.allowNewlines) {
+      const newlineIdx = this.config.seen_characters["\n"];
+      output[newlineIdx] = 0;
+    }
+    if (!vocabLimits.allowTokenizedWords) {
+      for (let token in this.tokensToStrings) {
+        const tokenIdx = this.config.seen_characters[token];
+        output[tokenIdx] = 0;
+      }
+    }
+    if (!vocabLimits.allowManaAndNumbersMarkup) {
+      for (let token of "{&WUBRGCX*}") {
+        const tokenIdx = this.config.seen_characters[token];
+        output[tokenIdx] = 0;
+      }
+    }
+    if (!vocabLimits.allowAlphabetic) {
+      for (let token of "abcdefghijklmnopqrstuvwxyz") {
+        const tokenIdx = this.config.seen_characters[token];
+        output[tokenIdx] = 0;
+      }
+    }
+    if (!vocabLimits.allowNumeric) {
+      for (let token of "1234567890") {
+        const tokenIdx = this.config.seen_characters[token];
+        output[tokenIdx] = 0;
+      }
+    }
+    if (!vocabLimits.allowNormalPuncutaion) {
+      for (let token of ".+-,") {
+        const tokenIdx = this.config.seen_characters[token];
+        output[tokenIdx] = 0;
+      }
+    }
+  }
+
+  /**
+   * Limits the next legal characters based on word transitions
+   *
+   * @param inputSequence
+   * @param output
+   */
+  private limitCharacterByLegalWordTransitions(
+    inputSequence: number[],
+    output: Float32Array
+  ) {
+    const inputString = inputSequence
+      .map(i => this.characterReverseLookup[Math.round(i * this.vocab.length)])
+      .join("");
+
+    const nextLegalChars = getNextLegalCharactersFromWordTransitions(
+      inputString,
+      this.legalWordTransitions,
+      this.stringsToTokens
+    );
+
+    if (nextLegalChars) {
+      for (let i = 0; i < output.length; i++) {
+        const char = this.characterReverseLookup[i];
+        if (nextLegalChars.indexOf(char) == -1) {
+          output[i] = 0;
+        }
+      }
+    }
   }
 
   private tokenizeInput(seedSequence: string): string {
@@ -145,13 +198,15 @@ export class TextGenerationModel {
 
   public static async load(
     modelPath: string,
-    configPath: string
+    configPath: string,
+    transitionsPath: string
   ): Promise<TextGenerationModel> {
-    const [model, trainedTextConfig] = await Promise.all([
+    const [model, trainedTextConfig, legalTransitions] = await Promise.all([
       tf.loadLayersModel(modelPath),
-      fetch(configPath).then(r => r.json())
+      fetch(configPath).then(r => r.json()),
+      fetch(transitionsPath).then(r => r.json())
     ]);
 
-    return new TextGenerationModel(model, trainedTextConfig);
+    return new TextGenerationModel(model, trainedTextConfig, legalTransitions);
   }
 }
