@@ -13,7 +13,11 @@ describe("getNextLegalCharactersFromCost", () => {
     "{W": "TWUBRGC^P}",
     "{^^^W": "TWUBRGC^P}",
     // when cost is closed, space
-    "{W}": " "
+    "{W}": " ",
+    // when the preceding chars are not a legal cost string, suggest nothing
+    a: "",
+    "{a": "",
+    "{WUBGR^Ta": ""
   };
 
   for (let [k, v] of Object.entries(testPairs)) {

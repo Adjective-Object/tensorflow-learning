@@ -131,13 +131,20 @@ export class TextGenerationModel {
   ) {
     const inputString = inputSequence
       .map(i => this.characterReverseLookup[Math.round(i * this.vocab.length)])
+      .map(t => this.tokensToStrings[t] || t)
       .join("");
 
+    const splitFields = inputString.split(/[;<]/g);
+    // Isolate this field and get rid of the number at the head of it.
+    const inputFieldString = splitFields[splitFields.length - 1].substring(1);
+
     const nextLegalChars = getNextLegalCharactersFromWordTransitions(
-      inputString,
+      inputFieldString,
       this.legalWordTransitions,
       this.stringsToTokens
     );
+
+    console.log(inputFieldString, "->", nextLegalChars);
 
     if (nextLegalChars) {
       for (let i = 0; i < output.length; i++) {

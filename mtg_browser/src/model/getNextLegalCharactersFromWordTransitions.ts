@@ -21,8 +21,8 @@ export function getNextLegalCharactersFromWordTransitions(
   wordToTokenMap: Record<string, string>
 ): string[] | null {
   const spacedInputString = inputString.replace(
-    / *([,\.:\"]|(\-(?!\d))) */g,
-    " \\1 "
+    / *([,\.:\"]|(\-(?!\d))) +/g,
+    " $1 "
   );
   const expandedWords = spacedInputString.split(" ");
   if (expandedWords.length < 2) {
@@ -30,6 +30,8 @@ export function getNextLegalCharactersFromWordTransitions(
   }
   const previousWord = expandedWords[expandedWords.length - 2];
   const currentWord = expandedWords[expandedWords.length - 1];
+
+  console.log(`previousWord '${previousWord}', currentWord ${currentWord}`);
 
   const lookupFromPreviousWord = getLookupWord(previousWord);
   if (wordMap[lookupFromPreviousWord] === undefined) {

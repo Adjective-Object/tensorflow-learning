@@ -3,6 +3,10 @@ import { numericChars, nonzeroNumericChars, plusMinusChars } from "./constants";
 export function getNextLegalCharactersFromStatModifier(
   currentWord: string
 ): string[] {
+  if (!currentWord.match(/^([+-](\d+(\/([+-](\d+)?)?)?)?)?$/)) {
+    return [];
+  }
+
   const wordAsStack = Array.from(currentWord);
   if (wordAsStack.length == 0) {
     return plusMinusChars;

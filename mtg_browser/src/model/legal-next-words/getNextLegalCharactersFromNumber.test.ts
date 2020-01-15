@@ -6,7 +6,11 @@ describe("getNextLegalCharactersFromNumber", () => {
     "-": "123456789",
     "-1": "1234567890 ",
     "1": "1234567890 ",
-    "0": " "
+    "0": " ",
+    // if the current word doesn't match, don't suggest
+    a: "",
+    "3b": "",
+    "-3c": ""
   };
 
   for (let [k, v] of Object.entries(testPairs)) {

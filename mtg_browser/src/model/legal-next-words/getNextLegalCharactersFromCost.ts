@@ -1,9 +1,14 @@
 const coloredManaSymbols = Array.from("WUBRG");
 export function getNextLegalCharactersFromCost(currentWord: string): string[] {
+  if (!currentWord.match(/^(\{([TWUBRGC\^P]+(\})?)?)?$/)) {
+    return [];
+  }
+
   const wordAsStack = Array.from(currentWord);
   if (wordAsStack.length == 0) {
     return ["{"];
   }
+
   wordAsStack.shift();
   const trackedChars = new Set<string>();
   while (wordAsStack[0] !== "}") {

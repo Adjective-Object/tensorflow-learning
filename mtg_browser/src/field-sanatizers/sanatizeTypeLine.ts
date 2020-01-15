@@ -25,12 +25,12 @@ const typeComparator = (a: string, b: string) => {
   }
 };
 
-export function sanatizeTypeLine(rawManaCostString: string): string {
-  const onlyLegalCharacters = Array.from(rawManaCostString)
+export function sanatizeTypeLine(rawTypeString: string): string {
+  const onlyLegalCharacters = Array.from(rawTypeString)
     .filter(c => legalCharacters.has(c))
     .join("");
 
-  const cleaned = onlyLegalCharacters
+  const cleaned = (onlyLegalCharacters + " -")
     .trim()
     // hyphens must have spaces around them
     .replace(/ *- */g, " - ")
@@ -48,5 +48,5 @@ export function sanatizeTypeLine(rawManaCostString: string): string {
     types.shift();
   }
 
-  return types.join(" ");
+  return types.join(" ").replace(/-( -)+/, "-");
 }

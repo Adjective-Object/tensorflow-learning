@@ -9,6 +9,7 @@ import { VocabLimits } from "../model/types/VocabLimits";
 import { sanatizeManaCost } from "../field-sanatizers/sanatizeManaCost";
 import { sanatizeTypeLine } from "../field-sanatizers/sanatizeTypeLine";
 import { sanatizeNumericField } from "../field-sanatizers/sanatizeNumericField";
+import { sanatizeNoMarkup } from "../field-sanatizers/sanatizeNoMarkup";
 
 const usePredictedValue = (
   predictionPrefix: string,
@@ -132,6 +133,7 @@ const FieldWithPrediction = React.memo(
   }) => {
     const [selectionMethod] = React.useState<SelectionMethod>({
       type: "take_with_probability"
+      // type: "take_best"
     });
     const selectionMethodWithLimitedVocab = React.useMemo(() => {
       return {
@@ -250,7 +252,10 @@ const useSanatizedField = (
 };
 
 export const Card = React.memo(() => {
-  const [displayName, setDisplayName] = React.useState("abandon reason");
+  const [displayName, setDisplayName] = useSanatizedField(
+    "abandon reason",
+    sanatizeNoMarkup
+  );
   const [manaCost, setManaCost] = useSanatizedField("^^R", sanatizeManaCost);
   const [typeLine, setTypeLine] = useSanatizedField(
     "creature",
@@ -259,7 +264,7 @@ export const Card = React.memo(() => {
   const [power, setPower] = useSanatizedField("", sanatizeNumericField);
   const [toughness, setToughness] = useSanatizedField("", sanatizeNumericField);
   const [loyalty, setLoyalty] = useSanatizedField("", sanatizeNumericField);
-  const [body, setBody] = React.useState("");
+  const [body, setBody] = useSanatizedField("", sanatizeNoMarkup);
 
   return (
     <section className="card-container">
@@ -280,7 +285,7 @@ export const Card = React.memo(() => {
         FieldContent={SimpleTextFieldRenderer}
       />
       <FieldWithPrediction
-        prefix={"<1" + displayName + ";2{" + manaCost + ";3"}
+        prefix={"<1" + displayName + ";2{" + manaCost + "};3"}
         vocabLimits={oneLineTextVocabLimits}
         currentValue={typeLine}
         onSetCurrentValue={setTypeLine}

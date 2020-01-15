@@ -64,6 +64,29 @@ describe("getNextLegalCharactersFromWordTransitions", () => {
     expect(result).toEqual(["r"]);
   });
 
+  it("suggests properly for hyphen", () => {
+    const result = getNextLegalCharactersFromWordTransitions(
+      "sacrifice a creature: the council - ",
+      {
+        "-": ["hewwo"]
+      }, // transitions
+      {} // tokenMap
+    );
+    expect(result).toEqual(["h"]);
+  });
+
+  it("suggests properly for hyphen w/ number follow-up", () => {
+    const result = getNextLegalCharactersFromWordTransitions(
+      "sacrifice a creature: the council -",
+      {
+        council: ["NUMBER", "-"],
+        "-": ["hewwo"]
+      }, // transitions
+      {} // tokenMap
+    );
+    expect(result).toEqual(Array.from("123456789 "));
+  });
+
   describe("recognizing special cases as previousWords", () => {
     describe("COST", () => {
       it("recognizes COSTs", () => {
@@ -194,11 +217,52 @@ describe("getNextLegalCharactersFromWordTransitions", () => {
   });
 
   describe("suggesting special cases", () => {
-    it.todo("suggests the first character of COST");
-    it.todo("suggests the first character of LOYALTY_COST");
-    it.todo("suggests the first character of STATS");
-    it.todo("suggests the first character of STAT_MODIFIER");
-    it.todo("suggests the first character of NUMBER");
+    it("suggests the first character of COST", () => {
+      const result = getNextLegalCharactersFromWordTransitions(
+        "hello ",
+        { hello: ["COST"] }, // transitions
+        {} // tokenMap
+      );
+
+      expect(result).toEqual(["{"]);
+    });
+
+    it("suggests the first character of LOYALTY_COST", () => {
+      const result = getNextLegalCharactersFromWordTransitions(
+        "hello ",
+        { hello: ["LOYALTY_COST"] }, // transitions
+        {} // tokenMap
+      );
+
+      expect(result).toEqual(["["]);
+    });
+    it("suggests the first character of STATS", () => {
+      const result = getNextLegalCharactersFromWordTransitions(
+        "hello ",
+        { hello: ["STATS"] }, // transitions
+        {} // tokenMap
+      );
+
+      expect(result).toEqual(Array.from("1234567890"));
+    });
+    it("suggests the first character of STAT_MODIFIER", () => {
+      const result = getNextLegalCharactersFromWordTransitions(
+        "hello ",
+        { hello: ["STAT_MODIFIER"] }, // transitions
+        {} // tokenMap
+      );
+
+      expect(result).toEqual(["+", "-"]);
+    });
+    it("suggests the first character of NUMBER", () => {
+      const result = getNextLegalCharactersFromWordTransitions(
+        "hello ",
+        { hello: ["NUMBER"] }, // transitions
+        {} // tokenMap
+      );
+
+      expect(result).toEqual(Array.from("1234567890-"));
+    });
   });
 
   describe("when there is no previous word", () => {

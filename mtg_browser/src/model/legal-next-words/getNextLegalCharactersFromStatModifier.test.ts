@@ -89,4 +89,14 @@ describe("getNextLegalCharactersFromStatModifier", () => {
       " "
     ]);
   });
+
+  it("returns nothing for a prefix string that isn't a legal stat modified", () => {
+    expect(getNextLegalCharactersFromStatModifier("a")).toEqual([]);
+    expect(getNextLegalCharactersFromStatModifier("+a")).toEqual([]);
+    expect(getNextLegalCharactersFromStatModifier("-a")).toEqual([]);
+    expect(getNextLegalCharactersFromStatModifier("+1a")).toEqual([]);
+    expect(getNextLegalCharactersFromStatModifier("+1/a")).toEqual([]);
+    expect(getNextLegalCharactersFromStatModifier("+1/-a")).toEqual([]);
+    expect(getNextLegalCharactersFromStatModifier("+1/-0a")).toEqual([]);
+  });
 });

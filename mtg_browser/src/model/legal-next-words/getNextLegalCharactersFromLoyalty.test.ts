@@ -5,7 +5,11 @@ describe("getNextLegalCharactersFromLoyalty", () => {
     "": "[",
     "[": "1234567890+-",
     "[1092": "1234567890]",
-    "[3]": " "
+    "[3]": " ",
+    // when containing invalid chars, don't match
+    a: "",
+    "[b": "",
+    "[1c": ""
   };
 
   for (let [k, v] of Object.entries(testPairs)) {

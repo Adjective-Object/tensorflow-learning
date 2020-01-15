@@ -1,6 +1,10 @@
 import { numericChars } from "./constants";
 
 export function getNextLegalCharactersFromStats(currentWord: string): string[] {
+  if (!currentWord.match(/^(\d+((\/(\d+)?)?)?)?$/)) {
+    return [];
+  }
+
   const wordAsStack = Array.from(currentWord);
   if (wordAsStack.length == 0) {
     return numericChars;

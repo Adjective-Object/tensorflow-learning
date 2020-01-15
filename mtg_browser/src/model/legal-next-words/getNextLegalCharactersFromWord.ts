@@ -9,7 +9,7 @@ function getNextLegalCharactersFromWordInner(
   currentWord: string,
   legalNextWord: string
 ): string[] {
-  switch (currentWord) {
+  switch (legalNextWord) {
     case "COST": {
       return getNextLegalCharactersFromCost(currentWord);
     }
