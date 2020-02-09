@@ -4,14 +4,20 @@ describe("getNextLegalCharactersFromCost", () => {
   const testPairs = {
     "": "{",
     // no pherexian mana initially, no closing brace
-    "{": "TWUBRGC^",
+    "{": "TQEWUBRGCX^",
     // no pherexian mana when no coloured mana symbols, but closing brace present
-    "{^^^": "TWUBRGC^}",
-    // no pherexian mana when only tap and mana symbols
-    "{T^^": "WUBRGC^}",
+    "{^^^": "TQEWUBRGCX^}",
+    // no pherexian mana when only tap and mana symbols, can't tap twice or tap & untap
+    "{T^^": "EWUBRGCX^}",
+    // no pherexian mana when only tap and mana symbols, can't untap and tap
+    "{Q^^": "EWUBRGCX^}",
+    // can repeat energy
+    "{E": "TQEWUBRGCX^}",
+    // can include multiple X
+    "{X": "TQEWUBRGCX^}",
     // pherexian mana when coloured mana symbols present
-    "{W": "TWUBRGC^P}",
-    "{^^^W": "TWUBRGC^P}",
+    "{W": "TQEWUBRGCX^P}",
+    "{^^^W": "TQEWUBRGCX^P}",
     // when cost is closed, space
     "{W}": " ",
     // when the preceding chars are not a legal cost string, suggest nothing

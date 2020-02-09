@@ -1,0 +1,15 @@
+.card-title-concrete {
+  resize: none;
+  font-size: inherit;
+  font-family: "Beleren Bold";
+  position: relative;
+  background-color: transparent;
+  border: none;
+  appearance: none;
+  height: 1.2em;
+  width: 0;
+
+  min-width: 1em;
+
+  resize: none;
+}

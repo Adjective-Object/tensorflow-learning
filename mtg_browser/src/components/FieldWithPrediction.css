@@ -1,0 +1,29 @@
+.card-field-value-commit,
+.card-field-value-refresh {
+  appearance: none;
+  outline: none;
+  border: none;
+  margin: 2px;
+  padding: 2px;
+  font-size: 24px;
+}
+
+.card-field-value-buttons {
+  padding: 2px;
+  position: relative;
+}
+
+.card-field-value-buttons-inner {
+  display: flex;
+  position: absolute;
+  /* flex-direction: column; */
+  top: 0;
+  left: 0;
+}
+
+*:not(:hover) + .card-field-value-buttons {
+  opacity: 0;
+}
+*:not(:hover) + .card-field-value-buttons:hover {
+  opacity: 1;
+}

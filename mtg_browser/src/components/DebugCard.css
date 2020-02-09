@@ -1,3 +1,116 @@
 .card-container {
-  border: 1px solid black;
+  position: relative;
+  margin: 12px;
+  border: 1px solid transparent;
+  background-image: url("/common_u_enchantment_creature_u_dimir.tiff.flat.png");
+  background-size: contain;
+
+  display: block;
+  margin: auto;
+  width: 745px;
+  height: 1040px;
+}
+
+.card-container input[type="text"] {
+  appearance: none;
+  outline: none;
+  border: none;
+  background-color: transparent;
+}
+
+/* ARRANGING GREATER SECTIONS */
+
+.card-title-line {
+  margin-top: 10px;
+  margin: 55px;
+  margin-bottom: 12px;
+  height: 48px;
+  border: 1px solid red;
+}
+
+.card-mana-cost {
+  display: flex;
+  flex-direction: row;
+}
+
+.card-img {
+  background-color: rgba(0, 255, 255, 0.2);
+  margin-left: 57px;
+  margin-right: 57px;
+  height: 462px;
+}
+
+.card-type-line {
+  margin: 12px 55px;
+  height: 48px;
+  background-color: rgba(255, 255, 0, 0.5);
+}
+
+.card-power-toughness {
+  position: absolute;
+  right: 55px;
+  bottom: 65px;
+  background-color: rgba(255, 0, 255, 0.5);
+}
+
+.card-body {
+  background-color: rgba(200, 100, 120, 0.5);
+  margin: 10px 55px;
+}
+
+/* line fields (title and type) */
+.card-line-container {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+
+  white-space: nowrap;
+}
+
+.card-line-field {
+  display: flex;
+  flex-direction: row;
+}
+
+.card-line-field:last-child {
+  margin-right: auto;
+}
+
+.card-line-field,
+.card-line-field input,
+.card-type-line,
+.card-type-line input {
+  font-family: "Beleren Bold";
+  font-size: 24px;
+}
+
+.card-line-field .concrete {
+  min-width: 0;
+  flex-shrink: 1;
+}
+
+.card-line-field .suggestion {
+  opacity: 0.5;
+  flex-grow: 1;
+}
+
+/* Power & toughness */
+.card-power-toughness {
+  display: flex;
+  align-items: center;
+  font-family: "Beleren Bold";
+  font-size: 24px;
+}
+
+.card-power,
+.card-toughness {
+  display: flex;
+}
+
+/* Body Text */
+.card-body {
+  position: relative;
+  font-family: "MPLantain";
+  font-size: 24px;
 }

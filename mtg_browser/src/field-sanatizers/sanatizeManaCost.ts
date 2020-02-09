@@ -3,18 +3,9 @@ const legalCharacters = new Set("WUBRGXP^");
 
 const sortOrder = ["X", "^", "C", "W", "U", "B", "R", "G"];
 
-const comparator = (a: string, b: string) => {
-  if (
-    a.length !== b.length &&
-    manaPipCharacters.has(a[0]) &&
-    manaPipCharacters.has(b[0])
-  ) {
-    return b.length - a.length;
-  }
-  return sortOrder.indexOf(a[0]) - sortOrder.indexOf(b[0]);
-};
-
-export function sanatizeManaCost(rawManaCostString: string) {
+export function normalizeAndSplitManaSymbols(
+  rawManaCostString: string
+): string[] {
   const onlyLegalCharacters = Array.from(rawManaCostString).filter(c =>
     legalCharacters.has(c)
   );
@@ -37,6 +28,23 @@ export function sanatizeManaCost(rawManaCostString: string) {
       individualManaSymbols.push(currentChar);
     }
   }
+
+  return individualManaSymbols;
+}
+
+const comparator = (a: string, b: string) => {
+  if (
+    a.length !== b.length &&
+    manaPipCharacters.has(a[0]) &&
+    manaPipCharacters.has(b[0])
+  ) {
+    return b.length - a.length;
+  }
+  return sortOrder.indexOf(a[0]) - sortOrder.indexOf(b[0]);
+};
+
+export function sanatizeManaCost(rawManaCostString: string) {
+  const individualManaSymbols = normalizeAndSplitManaSymbols(rawManaCostString);
 
   individualManaSymbols.sort(comparator);
 

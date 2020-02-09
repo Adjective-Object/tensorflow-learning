@@ -98,6 +98,12 @@ def encode_body(inp):
 
     return "7" + inp
 
+def replace_name_refs(body, name):
+    replaced_body = body.replace(name, '$')
+    if ',' in name:
+        short_name = name.split(',')[0]
+        replaced_body = replaced_body.replace(short_name, '$')
+    return replaced_body
 
 def generate_card_text(cards, tokenize_words):
     card_bodies = []
@@ -106,7 +112,7 @@ def generate_card_text(cards, tokenize_words):
     for card in cards.values():
         card_name = fix_him_her_their(fix_aether(strip_accents(card["name"].lower())))
         body_text = (
-            remove_reminder_text(card["text"].replace(card["name"], "$"))
+            remove_reminder_text(replace_name_refs(card["text"], card["name"]))
             if "text" in card
             else ""
         )
@@ -188,7 +194,10 @@ def generate_card_text(cards, tokenize_words):
 if __name__ == "__main__":
     all_cards = get_corpus()
 
-    for is_tokenized, out_fname in [(False, "allCards_bodies.json"), (True, "allCards_bodies_tokenized.json")]:
+    for is_tokenized, out_fname in [
+        (False, "allCards_bodies.json"),
+        (True, "allCards_bodies_tokenized.json"),
+    ]:
         card_bodies, seen_characters, tokens_to_strings = generate_card_text(
             all_cards, is_tokenized
         )

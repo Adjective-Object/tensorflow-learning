@@ -1,0 +1,33 @@
+.card-body-input {
+  resize: none;
+}
+
+.card-body-input:not(:focus) {
+  opacity: 0;
+}
+
+.card-body-input:focus ~ .card-body-display {
+  opacity: 0.1;
+}
+
+.card-body-prediction {
+  opacity: 0.5;
+}
+
+.card-body-input {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  min-height: 100%;
+  font-size: 24px;
+}
+
+.card-body-input ~ .card-body-display {
+  pointer-events: none;
+}
+
+.card-body-display {
+  display: flex;
+  flex-wrap: wrap;
+}

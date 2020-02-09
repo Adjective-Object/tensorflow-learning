@@ -378,34 +378,60 @@ def run_training(
     model.save("trained_text_mtg.h5")
 
 
+# if __name__ == "__main__":
+#     datasets = [
+#         (
+#             "no_tokenized",
+#             os.path.join(".", "data", "allCards_bodies.json"),
+#             os.path.join(".", "data", "allCards_bodies_validation.npy"),
+#             os.path.join(".", "data", "allCards_bodies_training.npy"),
+#         ),
+#         (
+#             "tokenized",
+#             os.path.join(".", "data", "allCards_bodies_tokenized.json"),
+#             os.path.join(".", "data", "allCards_bodies_validation_tokenized.npy"),
+#             os.path.join(".", "data", "allCards_bodies_training_tokenized.npy"),
+#         ),
+#     ]
+#     for layer_size in [256, 512, 1024, 1536]:
+#         for n_layers in [1, 2, 3, 4]:
+#             for tokenized_stub, body, validation, training in datasets:
+#                 logname = f"{tokenized_stub}-{n_layers}x{layer_size}"
+#                 print(
+#                     f"########################### RUN TRAINING {logname} ###########################"
+#                 )
+#                 run_training(
+#                     logname,
+#                     os.path.join(".", "data", "allCards_bodies.json"),
+#                     os.path.join(".", "data", "allCards_bodies_validation.npy"),
+#                     os.path.join(".", "data", "allCards_bodies_training.npy"),
+#                     n_layers,  # N_LAYERS
+#                     layer_size,  # LAYER_SIZE
+#                 )
+
 if __name__ == "__main__":
-    datasets = [
-        (
-            "no_tokenized",
-            os.path.join(".", "data", "allCards_bodies.json"),
-            os.path.join(".", "data", "allCards_bodies_validation.npy"),
-            os.path.join(".", "data", "allCards_bodies_training.npy"),
-        ),
-        (
-            "tokenized",
-            os.path.join(".", "data", "allCards_bodies_tokenized.json"),
-            os.path.join(".", "data", "allCards_bodies_validation_tokenized.npy"),
-            os.path.join(".", "data", "allCards_bodies_training_tokenized.npy"),
-        ),
-    ]
-    for layer_size in [256, 512, 1024, 1536]:
-        for n_layers in [1, 2, 3, 4]:
-            for tokenized_stub, body, validation, training in datasets:
-                logname = f"{tokenized_stub}-{n_layers}x{layer_size}"
-                print(
-                    f"########################### RUN TRAINING {logname} ###########################"
-                )
-                run_training(
-                    logname,
-                    os.path.join(".", "data", "allCards_bodies.json"),
-                    os.path.join(".", "data", "allCards_bodies_validation.npy"),
-                    os.path.join(".", "data", "allCards_bodies_training.npy"),
-                    n_layers,  # N_LAYERS
-                    layer_size,  # LAYER_SIZE
-                )
+    n_layers = 5
+    layer_size = 512
+
+    # logname = f"no_tokenized-{n_layers}x{layer_size}"
+    # run_training(
+    #     logname,
+    #     os.path.join(".", "data", "allCards_bodies.json"),
+    #     os.path.join(".", "data", "allCards_bodies_validation.npy"),
+    #     os.path.join(".", "data", "allCards_bodies_training.npy"),
+    #     n_layers,
+    #     layer_size,
+    #     NUM_EPOCHS=200,
+    # )
+
+    logname = f"tokenized-{n_layers}x{layer_size}"
+    run_training(
+        logname,
+        os.path.join(".", "data", "allCards_bodies_tokenized.json"),
+        os.path.join(".", "data", "allCards_bodies_validation_tokenized.npy"),
+        os.path.join(".", "data", "allCards_bodies_training_tokenized.npy"),
+        n_layers,
+        layer_size,
+        NUM_EPOCHS=200,
+    )
 

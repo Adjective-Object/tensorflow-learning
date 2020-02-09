@@ -1,0 +1,28 @@
+.card-number-input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  resize: none;
+  outline: none;
+  appearance: none;
+  border: none;
+}
+
+.card-number-concrete,
+.card-number-suggestion {
+  display: flex;
+  flex-direction: row;
+  position: relative;
+}
+
+.card-number-suggestion {
+  opacity: 0.5;
+}
+
+.card-number-input:not(:focus) {
+  opacity: 0;
+}

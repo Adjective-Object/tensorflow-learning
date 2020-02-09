@@ -1,0 +1,41 @@
+.mana-symbol {
+  display: block;
+  width: 36px;
+  height: 36px;
+  background-size: contain;
+  background-position: center;
+  pointer-events: none;
+}
+
+.card-mana-symbols-input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  resize: none;
+  outline: none;
+  appearance: none;
+  border: none;
+}
+
+.card-mana-symbols-input:not(:focus) {
+  opacity: 0;
+}
+
+.card-mana-symbols-input:focus ~ .mana-symbol {
+  opacity: 0.1;
+}
+
+.card-mana-symbols-concrete,
+.card-mana-symbols-suggestion {
+  display: flex;
+  flex-direction: row;
+  position: relative;
+}
+
+.card-mana-symbols-suggestion {
+  opacity: 0.5;
+}

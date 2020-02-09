@@ -5,3 +5,37 @@
   margin: 0;
   padding: 0;
 }
+
+@font-face {
+  font-family: "Beleren Bold";
+  src: url("/fonts/Beleren2016-Bold.woff") format("woff"),
+    url("/fonts/Beleren2016-Bold.ttf") format("truetype"),
+    url("/fonts/Beleren2016-Bold.svg#Beleren2016-Bold") format("svg");
+  font-style: normal;
+  font-weight: bold;
+  text-rendering: optimizeLegibility;
+}
+
+@font-face {
+  font-family: "MPLantain Bold";
+  src: url("/fonts/MPLantain-Bold.ttf") format("truetype");
+  font-style: normal;
+  font-weight: bold;
+  text-rendering: optimizeLegibility;
+}
+
+@font-face {
+  font-family: "MPLantain";
+  src: url("/fonts/MPLantain.ttf") format("truetype");
+  font-style: normal;
+  font-weight: bold;
+  text-rendering: optimizeLegibility;
+}
+
+@font-face {
+  font-family: "MPLantain Italic";
+  src: url("/fonts/MPLantain-Italic.ttf") format("truetype");
+  font-style: normal;
+  font-weight: bold;
+  text-rendering: optimizeLegibility;
+}

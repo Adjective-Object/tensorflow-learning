@@ -51,5 +51,14 @@ export function getNextLegalCharactersFromWord(
     }
   }
 
+  // special case: no consecutive "\n" s
+  if (currentWord === "\n") {
+    const newlineIndex = partialOutput.indexOf("\n");
+    if (newlineIndex !== -1) {
+      partialOutput.splice(newlineIndex, 1);
+    }
+    console.log("no consecutive newlines", partialOutput);
+  }
+
   return partialOutput;
 }

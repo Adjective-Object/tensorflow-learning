@@ -26,7 +26,7 @@ const typeComparator = (a: string, b: string) => {
 };
 
 export function sanatizeTypeLine(rawTypeString: string): string {
-  const onlyLegalCharacters = Array.from(rawTypeString)
+  const onlyLegalCharacters = Array.from(rawTypeString.toLowerCase())
     .filter(c => legalCharacters.has(c))
     .join("");
 
