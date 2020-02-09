@@ -1,11 +1,11 @@
 import * as React from "react";
 import "./DebugCard.css";
 import { predictText } from "../worker-suspense";
-import { SelectionMethod } from "../model/types/SelectionMethod";
+import { SelectionMethod } from "../text-generation-model/types/SelectionMethod";
 import { ErrorResponse } from "../worker/types/messages/ErrorResponse";
 import { TextCompletionResponse } from "../worker/types/messages/TextCompletionRespose";
 import debounce from "lodash/debounce";
-import { VocabLimits } from "../model/types/VocabLimits";
+import { VocabLimits } from "../text-generation-model/types/VocabLimits";
 import { FieldRendererProps } from "./types/FieldRendererProps";
 
 import "./FieldWithPrediction.css";

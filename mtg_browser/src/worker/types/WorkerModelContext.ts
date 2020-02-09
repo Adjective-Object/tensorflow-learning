@@ -1,4 +1,4 @@
-import { TextGenerationModel } from "../../model/TextGenerationModel";
+import { TextGenerationModel } from "../../text-generation-model/TextGenerationModel";
 
 /**
  * Global state of the worker's text models.

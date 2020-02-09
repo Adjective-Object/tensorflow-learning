@@ -3,7 +3,7 @@ import { TextCompletionResponse } from "../worker/types/messages/TextCompletionR
 import { TextCompletionRequest } from "../worker/types/messages/TextCompletionRequest";
 import { RequestToWorker } from "./RequestToWorker";
 import { RequestResponseWorker } from "./RequestResponseWorker";
-import { SelectionMethod } from "../model/types/SelectionMethod";
+import { SelectionMethod } from "../text-generation-model/types/SelectionMethod";
 
 export const bindPredictText = (worker: RequestResponseWorker) =>
   memoize(

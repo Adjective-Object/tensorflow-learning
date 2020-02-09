@@ -1,7 +1,7 @@
 /**
  * Entrypoint for the persistent worker.
  */
-import { TextGenerationModel } from "../model/TextGenerationModel";
+import { TextGenerationModel } from "../text-generation-model/TextGenerationModel";
 import { AppToWorkerMessage, WorkerToAppMessage } from "./types/messages";
 import { WorkerModelContext } from "./types/WorkerModelContext";
 import memoize from "lodash/memoize";

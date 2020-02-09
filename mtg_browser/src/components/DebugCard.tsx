@@ -1,6 +1,6 @@
 import * as React from "react";
 import "./DebugCard.css";
-import { VocabLimits } from "../model/types/VocabLimits";
+import { VocabLimits } from "../text-generation-model/types/VocabLimits";
 import { sanatizeManaCost } from "../field-sanatizers/sanatizeManaCost";
 import { sanatizeTypeLine } from "../field-sanatizers/sanatizeTypeLine";
 import { sanatizeNumericField } from "../field-sanatizers/sanatizeNumericField";

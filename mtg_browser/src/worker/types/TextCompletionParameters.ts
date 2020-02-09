@@ -1,4 +1,4 @@
-import { SelectionMethod } from "../../model/types/SelectionMethod";
+import { SelectionMethod } from "../../text-generation-model/types/SelectionMethod";
 
 export interface TextCompletionParameters {
   selectionMethod: SelectionMethod;
