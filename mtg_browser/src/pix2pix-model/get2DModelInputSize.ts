@@ -3,9 +3,7 @@ import * as tf from "@tensorflow/tfjs";
 /**
  * Gets the model input size off the loaded model
  */
-export function get2DModelInputSize(
-  model: tf.LayersModel
-): { width: number; height: number } {
+export function getModelInputSize(model: tf.LayersModel): number {
   const modelInputShapes = model.feedInputShapes;
 
   // console.log("model input", modelInputShapes, "output", model.outputShape);
@@ -14,23 +12,16 @@ export function get2DModelInputSize(
     throw new Error("Expected exactly 1 model input shape");
   }
   const inputShape = modelInputShapes[0];
-
-  if (inputShape.length !== 3 || inputShape[2] !== 3) {
+  if (
+    inputShape.length !== 2 ||
+    inputShape[0] !== null ||
+    inputShape[1] === null
+  ) {
     throw new Error(
-      "expected model input to have dimensionality [<input_height>, <input_width>, 3]"
-    );
-  }
-
-  const [height, width] = inputShape;
-  if (!height || !width) {
-    throw new Error(
-      "expected model input to have dimensionality [<input_height>, <input_width>, 3]"
+      "expected model input to have dimensionality [null, <input_size>]"
     );
   }
 
   // Cast because we've aleady checked that it is not null above
-  return {
-    width,
-    height
-  };
+  return inputShape[1] as number;
 }

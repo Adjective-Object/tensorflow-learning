@@ -8,7 +8,6 @@ import { getReverseLookupMap } from "./getReverseLookupMap";
 import { selectFromProbabilities } from "./selectFromProbabilities";
 import { trimOrPadSeedSequence } from "./trimOrPadSeedSequence";
 import { VocabLimits } from "./types/VocabLimits";
-import { getNextLegalCharactersFromWord } from "./legal-next-words/getNextLegalCharactersFromWord";
 import { getNextLegalCharactersFromWordTransitions } from "./getNextLegalCharactersFromWordTransitions";
 
 /**
